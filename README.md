@@ -8,6 +8,7 @@ It uses Mark Hammond's Pywin32 and Microsoft's Pyvot Python packages to make a r
 
 1. Architecture
 
+```
 ------------------------------------------------------------------------
 | User's Python Excel Add-ins      | User's Python Excel Workbook apps |
 ------------------------------------------------------------------------
@@ -25,3 +26,4 @@ It uses Mark Hammond's Pywin32 and Microsoft's Pyvot Python packages to make a r
 ------------------------------------------------------------------------
 | Excel                                                                |
 ------------------------------------------------------------------------
+```
