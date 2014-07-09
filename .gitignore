@@ -1,0 +1,9 @@
+/.sonar
+__pycache__
+/innosetup/python_packages/CAcert_Root_Certificates.msi
+/innosetup/python_packages/*.msi
+/innosetup/python_packages/wheel-0.24.0.tar.gz
+/innosetup/python_packages/wheelhouse/*.whl
+/innosetup/python_packages/pywin32-219.win32-py3.4.exe
+/sonar-project.properties
+.idea
