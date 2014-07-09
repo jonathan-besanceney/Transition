@@ -6,7 +6,13 @@ Transition Excel/COM Add-in
 This Python project aims to replace VBA nightmares by pretty Python scripts. 
 It uses Mark Hammond's Pywin32 and Microsoft's Pyvot Python packages to make a ready to use Excel COM/Add-in.
 
-1. Architecture
+You can download the installer (includes Python 3.4.1 and all Transition dependencies => 70.9 Mo) here : 
+
+https://github.com/jonathan-besanceney/Transition/raw/master/innosetup/Output/TransitionSetup.exe
+
+To see why setup file is fat : https://github.com/jonathan-besanceney/Transition/blob/master/innosetup/innoscript.iss
+
+## 1. Architecture
 
 ```
 ------------------------------------------------------------------------
