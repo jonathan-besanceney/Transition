@@ -46,7 +46,6 @@ from transitioncore import WAIT_FOR_EVENT_MSEC, defaultNamedNotOptArg
 from transitioncore.excelappevents import ExcelAppEvents
 import transitionconfig
 
-
 class WorkbookAppHandler(Thread):
     """Excel listener thread.
     Launched on TransitionMain.OnConnection()
@@ -63,6 +62,7 @@ class WorkbookAppHandler(Thread):
         self._ask_quit = False
         self._waitExcelVisible = waitExcelVisible
         self.thread_name = threading.currentThread().getName()
+        self.wb_app_thread_list = list()
 
     def quit(self):
         """Ask for thread termination"""
@@ -74,37 +74,42 @@ class WorkbookAppHandler(Thread):
               .format(self.name, ' '.join(x for x in transitionconfig.app_get_enabled_list() if x)))
         try:
             if self._waitExcelVisible is False and self.xlApp.Visible == 0:
-                print("WorkbookAppHandler {} : Excel wasn't running... Exiting..."
-                      .format(self.name))
+                print("WorkbookAppHandler {} : Excel wasn't running... Exiting...".format(self.name))
                 self.xlApp.Quit()
             else:
                 if self.xlApp.EnableEvents is False:
-                    print("WorkbookAppHandler {} : Enabling Events !"
-                          .format(self.name))
+                    print("WorkbookAppHandler {} : Enabling Events !".format(self.name))
+                    self.xlApp.EnableEvents = True
 
                 self.xlApp = DispatchWithEvents(self.xlApp, WorkbookHandlerEvents)
                 self.xlApp.name = "WorkbookAppHandler ExcelEvent"
+                self.xlApp.wb_app_thread_list = self.wb_app_thread_list
 
-                #open workbook apps for already opened workbooks
+                # open workbook apps for already opened workbooks
                 for wb in self.xlApp.Workbooks:
-                    launch_wb_app(wb)
+                    wb_thread = launch_wb_app(wb)
+                    if wb_thread is not None:
+                        self.wb_app_thread_list.append(wb_thread)
 
-                #Main loop. Will stop at excel termination. See TransitionMain.OnDisconnection
+                # Main loop. Will stop at excel termination. See TransitionMain.OnDisconnection
                 while self._ask_quit is False:
                     win32event.WaitForSingleObject(self.xlApp.event, WAIT_FOR_EVENT_MSEC)
 
-                #kill opened workbook apps
-                #TODO
+                print("WorkbookAppHandler {} is terminating...".format(self.name))
 
-            print("WorkbookAppHandler {} is terminating...".format(self.name))
+                # kill opened workbook apps
+                for wb_thread in self.wb_app_thread_list:
+                    if wb_thread in threading.enumerate():
+                        print("WorkbookAppHandler {} : Killing {}...".format(self.name, wb_thread.name))
+                        wb_thread.quit()
 
         except KeyboardInterrupt:
             print("WorkbookAppHandler {} : interruption exception".format(self.name),
                   "intercepted (termination asked) !")
         except pythoncom.com_error as details:
             print("WorkbookAppHandler {} Exception (com_error) : {}".format(self.name, details))
-        except Exception as e:
-            print("WorkbookAppHandler {} Exception".format(self.name, e))
+        # except Exception as e:
+        #     print("WorkbookAppHandler {} Exception".format(self.name, e))
 
         self.xlApp = None
         print("WorkbookAppHandler {} terminated...".format(self.name))
@@ -117,6 +122,7 @@ class WorkbookHandlerEvents(ExcelAppEvents):
 
     def __init__(self):
         super(WorkbookHandlerEvents, self).__init__()
+        self.wb_app_thread_list = list()
 
     def OnWindowActivate(self, Wb=defaultNamedNotOptArg, Wn=defaultNamedNotOptArg):
         """
@@ -126,6 +132,8 @@ class WorkbookHandlerEvents(ExcelAppEvents):
         :param Wn: Window object
         """
         print("{} OnWindowActivate {} {}".format(self.name, Wb.Name, Wn.Caption))
-        launch_wb_app(Wb)
+        wb_thread = launch_wb_app(Wb)
+        if wb_thread is not None:
+            self.wb_app_thread_list.append(wb_thread)
 
         win32event.SetEvent(self.event)

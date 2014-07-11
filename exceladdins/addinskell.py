@@ -39,11 +39,11 @@ from threading import Thread
 class ExcelAddinSkell(Thread):
     """Addin Standard Skeleton"""
 
-    def __init__(self, xlApp):
+    def __init__(self, xl_app, name="ExcelAddinSkell"):
         super(ExcelAddinSkell, self).__init__()
-        print("ExcelAddinSkell : init")
-        self.xlApp = xlApp
-        self.name = "ExcelAddinSkell"
+        self.name = name
+        print("{} : Init".format(self.name))
+        self.xl_app = xl_app
         self.ask_quit = False
         self.evt_handler = None
 

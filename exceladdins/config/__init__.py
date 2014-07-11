@@ -82,15 +82,13 @@ class ButtonEvent:
 
 
 class ExcelAddin(addinskell.ExcelAddinSkell):
-    def __init__(self, xlApp):
-        super(ExcelAddin, self).__init__(xlApp)
+    def __init__(self, xl_app):
+        super(ExcelAddin, self).__init__(xl_app, "ConfigAddin")
 
     def run(self):
-        self.name = "ConfigAddin"
-
         self.evt_handler = ButtonEvent
 
-        cbcMyBar = self.xlApp.CommandBars.Add(Name="Transition Add-in conf",
+        cbcMyBar = self.xl_app.CommandBars.Add(Name="Transition Add-in conf",
                                               Position=constants.msoBarTop,
                                               MenuBar=constants
                                               .msoBarTypeNormal,
@@ -105,7 +103,7 @@ class ExcelAddin(addinskell.ExcelAddinSkell):
         btnMyButton.TooltipText = "Launch Transition config panel"
         btnMyButton.Width = "34"
         btnMyButton.FaceID = 1713
-        btnMyButton.xlApp = self.xlApp
+        btnMyButton.xlApp = self.xl_app
 
         cbcMyBar.Visible = True
 
@@ -121,7 +119,7 @@ class ExcelAddin(addinskell.ExcelAddinSkell):
             if btnMyButton.dialog.poll() is None:
                 btnMyButton.dialog.terminate()
 
-        self.xlApp = None
+        self.xl_app = None
 
 
 if __name__ == "__main__":

@@ -110,10 +110,13 @@ class ExcelWorkbookAppSkell(Thread):
         self.name = name
         self.evt_handler = evt_handler
 
+    def quit(self):
+        self.wb.ask_quit = True
+
     def run(self):
         """ Initialize and launch application main loop"""
 
-        print("{} : Launch Transition WorkbookApp on {}".format(self.name,  self.wb.Name))
+        print("{} : Init Transition WorkbookApp on {}".format(self.name,  self.wb.Name))
 
         if self.wb is not None:
             try:
