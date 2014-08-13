@@ -60,12 +60,10 @@ Excel workbooks in providing a unique code storage place.
 import inspect
 import sys
 import os
-import threading
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
-import transitionconfig
 from excelapps.appskell import ExcelWorkbookAppSkell
 
 
@@ -94,7 +92,7 @@ def get_wb_app_instance(wb):
     """
 
     handler = None
-    handler_list = transitionconfig.app_get_enabled_list()
+    handler_list = app_get_enabled_list()
     for name in handler_list:
         # Import app dynamicaly
         excel_app_module = inspect.importlib.import_module("excelapps.{}".format(name))
@@ -106,30 +104,3 @@ def get_wb_app_instance(wb):
     return handler
 
 
-def launch_wb_app(wb):
-    """
-    Launches an ExcelApp on the given wb.
-    :param wb:
-    :return: Thread instance if ok. None if no app are found.
-    :rtype: Thread
-    """
-    # Ask lauching App
-    launch = True
-    wb_thread = None
-    # Try to find launched Apps
-    for t in threading.enumerate():
-        # If app already launched
-        if hasattr(t, "wb") and t.wb.Name == wb.Name:
-            # We don't want to launch it again
-            launch = False
-
-    if launch:
-        wb_thread = get_wb_app_instance(wb)
-        if wb_thread is not None:
-            print("Launching Transition Workbook App {} on {} ...".format(wb_thread.name, wb.Name))
-            wb_thread.daemon = True
-            wb_thread.start()
-    else:
-        print("Transition Workbook App on {} already launched !".format(wb.Name))
-
-    return wb_thread

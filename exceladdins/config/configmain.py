@@ -42,7 +42,6 @@ from PySide.QtCore import Slot
 import pywintypes
 import win32trace
 
-import transitionconfig
 import exceladdins
 import excelapps
 
@@ -70,7 +69,7 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
         itemAppRoot = PySide.QtGui.QStandardItem(APPLICATIONS)
         parentItem.appendRow(itemAppRoot)
 
-        app_list = transitionconfig.app_get_list()
+        app_list = app_get_list()
 
         for app_name, status in app_list:
             item = PySide.QtGui.QStandardItem(app_name)
@@ -81,7 +80,7 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
         parentItem = root
         parentItem.appendRow(itemAddinRoot)
 
-        addin_list = transitionconfig.addin_get_list()
+        addin_list = addin_get_list()
         for addin_name, status in addin_list:
             item = PySide.QtGui.QStandardItem(addin_name)
             parentItem = itemAddinRoot
@@ -115,14 +114,14 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
         for item in model:
             if status:
                 if item.parent().data() == APPLICATIONS:
-                    func = transitionconfig.app_enable
+                    func = app_enable
                 else:
-                    func = transitionconfig.addin_enable
+                    func = addin_enable
             else:
                 if item.parent().data() == APPLICATIONS:
-                    func = transitionconfig.app_disable
+                    func = app_disable
                 else:
-                    func = transitionconfig.addin_disable
+                    func = addin_disable
             func(item.data())
             print("set_status {} : {} {}".format(status, item.parent().data(), item.data()))
             self.set_button_activation_text(status)
@@ -160,11 +159,11 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
             self.ui.buttonActivation.setEnabled(True)
             module_name = QModelIndex.data()
             if QModelIndex.parent().data() == APPLICATIONS:
-                desc = transitionconfig.app_get_desc(module_name)
-                status = transitionconfig.app_get_status(module_name)
+                desc = app_get_desc(module_name)
+                status = app_get_status(module_name)
             else:
-                desc = transitionconfig.addin_get_desc(module_name)
-                status = transitionconfig.addin_get_status(module_name)
+                desc = addin_get_desc(module_name)
+                status = addin_get_status(module_name)
 
             # toggle the button to reflect status and ensure status text is updated
             self.ui.buttonActivation.setChecked(status)

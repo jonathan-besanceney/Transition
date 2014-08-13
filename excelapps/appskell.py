@@ -47,38 +47,27 @@ import win32event
 import pythoncom
 import xl as pyvot
 
-from transitioncore import WAIT_FOR_EVENT_MSEC
-from transitioncore.excelwbevents import ExcelWbEvents
+from transitioncore.comeventsinterface.excelwbeventsinterface import ExcelWbEventsInterface
 
 
-def is_handled_workbook(wb):
-    """
-    This method returns an instance of ExcelWorkbookAppSkell if wb is a
-    handled Workbook
-
-    :param wb: Workbook instance
-    :return ExcelWorkbookAppSkell instance
-    """
-    return ExcelWorkbookAppSkell(wb, ExcelWbEventsSkell, "ExcelWorkbookAppSkell")
-
-
-class ExcelWbEventsSkell(ExcelWbEvents):
+class ExcelWbEventsSkell(ExcelWbEventsInterface):
     """
     Workbook Event handling basics
     """
 
     def __init__(self):
         super(ExcelWbEventsSkell, self).__init__()
-        self.ask_quit = False
         self.before_close = False
         self.name = 'ExcelWbEventsSkell'
+
+    def del_event_handle(self, pyhandle):
+        pass
 
     def OnActivate(self):
         print(self.name, self.Name, "ExcelWbEventsSkell OnActivate")
         # UnSet the before_close flag to help OnDeactivate to determine
         # if we need quit
         self.before_close = False
-        win32event.SetEvent(self.event)
 
     def OnBeforeClose(self, Cancel):
         print(self.name, self.Name, "ExcelWbEventsSkell OnBeforeClose", Cancel,
@@ -86,7 +75,6 @@ class ExcelWbEventsSkell(ExcelWbEvents):
         # Set the before_close flag to help OnDeactivate to determine
         # if we need quit
         self.before_close = True
-        win32event.SetEvent(self.event)
         return Cancel
 
     def OnDeactivate(self):
@@ -95,12 +83,11 @@ class ExcelWbEventsSkell(ExcelWbEvents):
         # Is this event appends after OnBeforeClose ?
         if self.before_close:
             # We want quit, the workbook is closing now.
-            self.ask_quit = True
+            self.del_event_handle(self.event)
+            print(self.name, self.Name, "ExcelWbEventsSkell remove event handle")
 
-        win32event.SetEvent(self.event)
 
-
-class ExcelWorkbookAppSkell(Thread):
+class ExcelWorkbookAppSkell():
     """Application Standard Skeleton"""
 
     def __init__(self, wb, evt_handler, name):
@@ -109,9 +96,27 @@ class ExcelWorkbookAppSkell(Thread):
         self.wb = wb
         self.name = name
         self.evt_handler = evt_handler
+        self._pyhandles = list()
 
-    def quit(self):
-        self.wb.ask_quit = True
+    def add_event_handle(self, pyhandle):
+        self._pyhandles.append(pyhandle)
+
+    def del_event_handle(self, pyhandle):
+        self._pyhandles.remove(pyhandle)
+
+    def get_event_handles(self):
+        return self._pyhandles
+
+    @staticmethod
+    def is_handled_workbook(wb):
+        """
+        This method returns an instance of ExcelWorkbookAppSkell if wb is a
+        handled Workbook
+
+        :param wb: Workbook instance
+        :return ExcelWorkbookAppSkell instance
+        """
+        return ExcelWorkbookAppSkell(wb, ExcelWbEventsSkell, "ExcelWorkbookAppSkell")
 
     def run(self):
         """ Initialize and launch application main loop"""
@@ -119,34 +124,20 @@ class ExcelWorkbookAppSkell(Thread):
         print("{} : Init Transition WorkbookApp on {}".format(self.name,  self.wb.Name))
 
         if self.wb is not None:
-            try:
-                # Add Events Handlers to the Workbook instance
-                self.wb = DispatchWithEvents(self.wb, self.evt_handler)
-                self.wb.name = self.name
+            # Add Events Handlers to the Workbook instance
+            self.wb = DispatchWithEvents(self.wb, self.evt_handler)
+            self.wb.name = self.name
 
-                # Get the Pythonic interface to Excel from Microsoft
-                # (Pyvot => xl)
-                self.wb.pywb = pyvot.Workbook(self.wb)
+            # Get the Pythonic interface to Excel from Microsoft
+            # (Pyvot => xl)
+            self.wb.pywb = pyvot.Workbook(self.wb)
 
-                print("{} : Transition is plugged on {}. Waiting for events...".format(self.name, self.wb.Name))
+            self.wb.del_event_handle = self.del_event_handle
 
-                # Main loop
-                while self.wb.ask_quit is False:
-                    win32event.WaitForSingleObject(self.wb.event, WAIT_FOR_EVENT_MSEC)
-
-            except KeyboardInterrupt:
-                print("{} : Interruption exception intercepted"
-                      .format(self.name),
-                      "(termination asked) !")
-            except pythoncom.com_error as e:
-                print("{} pythoncom.com_error : {}".format(self.name, e))
-            except Exception as e:
-                print("{} Exception : {}".format(self.name, e))
+            print("{} : Transition is plugged on {}. Waiting for events...".format(self.name, self.wb.Name))
 
         else:
             print("{} : You must give a valid Workbook instance !".format(self.name))
-
-        print("{} : Terminated".format(self.name))
 
 if __name__ == '__main__':
     from win32com.client import Dispatch
@@ -154,9 +145,8 @@ if __name__ == '__main__':
     xlApp.Visible = 1
     xlApp.EnableEvents = True
     m_wb = xlApp.Workbooks.Add()
-    app = is_handled_workbook(m_wb)
-    app.start()
-    app.join()
+    app = ExcelWorkbookAppSkell.is_handled_workbook(m_wb)
+    app.run()
     app = None
     xlApp = None
     sys.exit(0)

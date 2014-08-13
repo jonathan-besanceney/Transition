@@ -38,7 +38,6 @@ defaultMissingArg = pythoncom.Missing
 #How many milliseconds we wait for event in main loop
 WAIT_FOR_EVENT_MSEC = 1000
 
-
 def transition_register(klass):
     import winreg
 

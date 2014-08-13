@@ -41,15 +41,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.join(os.path.dirname(__file
 from excelapps import appskell
 
 
-def is_handled_workbook(wb):
-    """This method returns an instance of MyExcelWorkbookApp if wb is a
-    handled Workbook.
-    Implement here your workbook recognition.
-
-    """
-    return DummyApp(wb, appskell.ExcelWbEventsSkell)
-
-
 class DummyApp(appskell.ExcelWorkbookAppSkell):
     """This class is a dummy workbook handler. It's main purpose is to be
     copied in a new excelapps sub package to make a real app.
@@ -59,14 +50,23 @@ class DummyApp(appskell.ExcelWorkbookAppSkell):
     def __init__(self, wb, evt_handler):
         super(DummyApp, self).__init__(wb, evt_handler,  "DummyApp")
 
+    @staticmethod
+    def is_handled_workbook(wb):
+        """This method returns an instance of MyExcelWorkbookApp if wb is a
+        handled Workbook.
+        Implement here your workbook recognition.
+
+        """
+        return DummyApp(wb, appskell.ExcelWbEventsSkell)
+
+
 if __name__ == '__main__':
     from win32com.client import Dispatch
     xlApp = Dispatch("Excel.Application")
     xlApp.Visible = 1
     m_wb = xlApp.Workbooks.Add()
-    app = is_handled_workbook(m_wb)
+    app = DummyApp.is_handled_workbook(m_wb)
     app.start()
-    app.join()
     app = None
     xlApp = None
     sys.exit(0)

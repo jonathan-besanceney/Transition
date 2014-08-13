@@ -39,8 +39,6 @@ import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
-import transitionconfig
-
 
 def get_desc():
     """Return the description of this module"""
@@ -55,42 +53,7 @@ def get_desc():
         print(e)
         return -1
 
-
-def unload_addins(addin_thread_list):
-
-    """
-    Stops all launched addins.
-    :param addin_thread_list: list fo launched addins to stop
-    """
-    for addin in addin_thread_list:
-        if addin.is_alive():
-            addin.quit()
-
 if __name__ == '__main__':
     print("This file is a part of ExcelCOM project and is not intended to be run separately.")
 
 
-def load_addins(xlApp):
-    """
-    Loads and starts registered addins in the current xlApp
-
-    :param xlApp: Excel.Application instance.
-
-    :return the list of addin Threads
-
-    """
-
-    addin_list = transitionconfig.addin_get_enabled_list()
-
-    print("exceladdins.load_addins() : List of addin to launch :", ' '.join(x for x in addin_list if x))
-
-    addin_thread_list = []
-    for name in addin_list:
-        # Import app dynamicaly
-        excel_addin_module = inspect.importlib.import_module("exceladdins.{}".format(name))
-        addin = excel_addin_module.ExcelAddin(xlApp)
-        addin.daemon = True
-        addin.start()
-        addin_thread_list.append(addin)
-
-    return addin_thread_list

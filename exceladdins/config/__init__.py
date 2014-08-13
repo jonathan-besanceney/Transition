@@ -36,9 +36,6 @@ This file is responsible for Excel integration of the config box.
 """
 import sys
 
-# specify free threading, common way to think threading.
-sys.coinit_flags = 0
-
 import os
 from subprocess import Popen
 
@@ -51,22 +48,20 @@ sys.executable = os.path.join(sys.exec_prefix, 'pythonw.exe')
 from win32com.client import DispatchWithEvents, constants
 import win32event
 
-from exceladdins import addinskell
+from exceladdins import addin
 from exceladdins.config import config_box, configmain
 
 
 class ButtonEvent:
     """ Button Event Handler class.
-    This class is plugged to the button made in ExcelAddin Class in this file
+    This class is plugged to the button made in ConfigAddin Class in this file
     """
 
     def __init__(self):
-        self.event = win32event.CreateEvent(None, 0, 0, None)
         self.dialog = None
         self.script_name = "{}{}".format(os.path.abspath(os.path.dirname(__file__)), "\\configmain.py")
 
     def OnClick(self, button, cancel):
-
         #check if we already launched the dialog box
         if self.dialog is not None:
             #check if the dialog still running (Poll() return None)
@@ -77,49 +72,55 @@ class ButtonEvent:
         else:
             self.dialog = Popen([sys.executable, self.script_name])
 
-        win32event.SetEvent(self.event)
         return cancel
 
 
-class ExcelAddin(addinskell.ExcelAddinSkell):
+class ConfigAddin(addin.ExcelAddin):
     def __init__(self, xl_app):
-        super(ExcelAddin, self).__init__(xl_app, "ConfigAddin")
-
-    def run(self):
-        self.evt_handler = ButtonEvent
-
-        cbcMyBar = self.xl_app.CommandBars.Add(Name="Transition Add-in conf",
+        super(ConfigAddin, self).__init__(xl_app, "ConfigAddin")
+        self.cbcMyBar = self.xl_app.CommandBars.Add(Name="Transition Add-in conf",
                                               Position=constants.msoBarTop,
-                                              MenuBar=constants
-                                              .msoBarTypeNormal,
+                                              MenuBar=constants.msoBarTypeNormal,
                                               Temporary=True)
 
-        btnMyButton = cbcMyBar.Controls.Add(Type=constants.msoControlButton,
+
+        self.btnMyButton = self.cbcMyBar.Controls.Add(Type=constants.msoControlButton,
                                             Parameter="Greetings")
-        btnMyButton = DispatchWithEvents(btnMyButton, self.evt_handler)
-        btnMyButton.Style = constants.msoButtonIconAndCaptionBelow
-        btnMyButton.BeginGroup = True
-        btnMyButton.Caption = "&Transition config"
-        btnMyButton.TooltipText = "Launch Transition config panel"
-        btnMyButton.Width = "34"
-        btnMyButton.FaceID = 1713
-        btnMyButton.xlApp = self.xl_app
 
-        cbcMyBar.Visible = True
+    def run(self):
+        self.btnMyButton = DispatchWithEvents(self.btnMyButton, ButtonEvent)
+        self.btnMyButton.Style = constants.msoButtonIconAndCaptionBelow
+        self.btnMyButton.BeginGroup = True
+        self.btnMyButton.Caption = "Transition config"
+        self.btnMyButton.TooltipText = "Launch Transition config panel"
+        self.btnMyButton.Width = "34"
+        self.btnMyButton.FaceId = "642"
+        self.btnMyButton.xlApp = self.xl_app
 
-        print(self.name, "addin plugged. Waiting for events...")
+        self.cbcMyBar.Visible = True
 
-        # Main loop
-        while self.ask_quit is False:
-            win32event.WaitForSingleObject(btnMyButton.event, 1000)
+        print(self.name, "running...")
 
+    def wait(self):
+        pass
+
+    def resume(self):
+        pass
+
+    def terminate(self):
         #Does dialog still running ?
-        if btnMyButton.dialog is not None:
+        if self.btnMyButton.dialog is not None:
             #check if the dialog still running (Poll() return None)
-            if btnMyButton.dialog.poll() is None:
-                btnMyButton.dialog.terminate()
+            if self.btnMyButton.dialog.poll() is None:
+                self.btnMyButton.dialog.terminate()
 
-        self.xl_app = None
+        self.cbcMyBar.Visible = False
+        self.cbcMyBar = None
+        self.btnMyButton = None
+        print(self.name, "terminated")
+
+#declare our add-in. ExcelAddinManager will search module.excel_addin attribute to start this add-in
+excel_addin = ConfigAddin
 
 
 if __name__ == "__main__":
