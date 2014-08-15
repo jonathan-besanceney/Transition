@@ -38,7 +38,7 @@ import sys
 # sys.coinit_flags = 0
 
 import os
-
+from transitioncore import TransitionAppType
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
@@ -51,6 +51,7 @@ from win32com.client import gencache
 import pythoncom
 import win32trace
 
+from transitioncore.transitioneventdispatcher import TransitionEventDispatcher
 from transitioncore.transitionkernel import TransitionKernel
 from transitioncore.comeventsinterface.comeventsinterface import COMEventsInterface
 
@@ -68,7 +69,7 @@ universal.RegisterInterfaces('{AC0714F2-3D04-11D1-AE7D-00A0C90F26F4}', 0, 1, 0,
                              ["_IDTExtensibility2"])
 
 
-class TransitionCOMEventsListener:
+class TransitionCOMEventsListener(TransitionEventDispatcher):
     """
     Transition COM Add-In Event Class. Add-In entry point.
 
@@ -89,24 +90,12 @@ class TransitionCOMEventsListener:
     addin_description = "Transition Excel/COM Addin enables you automate Excel with Python"
 
     def __init__(self):
+        super(TransitionCOMEventsListener, self).__init__(COMEventsInterface)
         self.name = TransitionCOMEventsListener.addin_name
         print(self.addin_name, ": init", self.name)
         self.excel_app = None
-        self._com_event_listeners = list()
         self._kernel = TransitionKernel(True)
-        self.add_com_event_listener(self._kernel.get_com_event_listener())
-
-    def add_com_event_listener(self, listener):
-        if isinstance(listener, COMEventsInterface):
-            self._com_event_listeners.append(listener)
-        else:
-            print(self.addin_name, "add_com_event_listener : ignoring non COMEventsInterface listener", repr(listener))
-
-    def del_com_event_listener(self, listener):
-        try:
-            self._com_event_listeners.remove(listener)
-        except ValueError:
-            print(self.addin_name, "del_com_event_listener : Can't remove unregistered listener", repr(listener))
+        self.add_event_listener(self._kernel.get_com_event_listener())
 
     def OnConnection(self, application, connect_mode, addin, custom):
         """
@@ -118,8 +107,7 @@ class TransitionCOMEventsListener:
         self.excel_app = application
 
         # fire registered events
-        for event_listener in self._com_event_listeners:
-            event_listener.on_connection(application, connect_mode, addin, custom)
+        self._fire_event("on_connection", (application, connect_mode, addin, custom))
 
     def OnDisconnection(self, mode, custom):
         """
@@ -127,9 +115,8 @@ class TransitionCOMEventsListener:
         """
         print(self.addin_name, ": OnDisconnection".format(self.name), mode, custom)
 
-        # fire registered events
-        for event_listener in self._com_event_listeners:
-            event_listener.on_disconnection(mode, custom)
+        # fire registered events from registered listeners
+        self._fire_event("on_disconnection", (mode, custom))
 
         self.excel_app.Quit()
         self.excel_app = None
@@ -139,30 +126,27 @@ class TransitionCOMEventsListener:
         print(self.addin_name, ": OnAddInsUpdate".format(self.name), custom)
 
         # fire registered events
-        for event_listener in self._com_event_listeners:
-            event_listener.on_addins_update(custom)
+        self._fire_event("on_addins_update", custom)
 
     def OnStartupComplete(self, custom):
         # While Excel finish its startup process
         print(self.addin_name, ": OnStartupComplete".format(self.name), custom)
 
         # fire registered events
-        for event_listener in self._com_event_listeners:
-            event_listener.on_startup_complete(custom)
+        self._fire_event("on_startup_complete", custom)
 
     def OnBeginShutdown(self, custom):
         # Excel begins to launch its termination process.
         print(self.addin_name, ": OnBeginShutdown".format(self.name), custom)
 
         # fire registered events
-        for event_listener in self._com_event_listeners:
-            event_listener.on_begin_shutdown(custom)
+        self._fire_event("on_begin_shutdown", custom)
 
 
 if __name__ == '__main__':
     import argparse
-    from transitioncore import transition_register, transition_unregister
     from transitioncore.configuration import Configuration, ConfigurationException
+
     try:
         config = Configuration()
 
@@ -186,42 +170,38 @@ if __name__ == '__main__':
 
         group.add_argument("-al", "--app-list", help="lists available excel apps", action="store_true")
         group.add_argument("-ae", "--app-enable", help="enables available excel app", type=str,
-                           choices=config.app_get_disabled_list())
+                           choices=config.app_get_disabled_list(TransitionAppType.excel_wbapp))
         group.add_argument("-ad", "--app-disable", help="disables previously enabled excel_app", type=str,
-                           choices=config.app_get_enabled_list())
+                           choices=config.app_get_enabled_list(TransitionAppType.excel_wbapp))
 
         group.add_argument("-dl", "--addin-list", help="lists available excel add-ins", action="store_true")
         group.add_argument("-de", "--addin-enable", help="enables available excel add-ins", type=str,
-                           choices=config.addin_get_disabled_list())
+                           choices=config.app_get_enabled_list(TransitionAppType.excel_addin))
         group.add_argument("-dd", "--addin-disable", help="disables previously enabled excel add-ins", type=str,
-                           choices=config.addin_get_enabled_list())
+                           choices=config.app_get_enabled_list(TransitionAppType.excel_addin))
 
         args = parser.parse_args()
 
         if args.list:
-            config.app_print_list()
-            config.addin_print_list()
+            for app_type in TransitionAppType:
+                config.app_print_list(app_type)
         elif args.app_list:
-            config.app_print_list()
+            config.app_print_list(TransitionAppType.excel_wbapp)
         elif args.addin_list:
-            config.addin_print_list()
+            config.app_print_list(TransitionAppType.excel_addin)
         elif args.app_enable is not None:
-            config.app_enable(args.app_enable)
+            config.app_enable(TransitionAppType.excel_wbapp, args.app_enable)
         elif args.app_disable is not None:
-            config.app_disable(args.app_disable)
+            config.app_disable(TransitionAppType.excel_wbapp,args.app_disable)
         elif args.addin_enable is not None:
-            config.app_enable(args.addin_enable)
+            config.app_enable(TransitionAppType.excel_addin, args.addin_enable)
         elif args.addin_disable is not None:
-            config.app_disable(args.addin_disable)
+            config.app_disable(TransitionAppType.excel_addin, args.addin_disable)
         elif args.unregister:
-            import win32com.server.register
-            win32com.server.register.UseCommandLine(TransitionCOMEventsListener)
-            transition_unregister(TransitionCOMEventsListener)
+            TransitionKernel.transition_unregister(TransitionCOMEventsListener)
         else:
-            import win32com.server.register
-            win32com.server.register.UseCommandLine(TransitionCOMEventsListener)
-            transition_register(TransitionCOMEventsListener)
+            TransitionKernel.transition_register(TransitionCOMEventsListener)
     except ConfigurationException as ce:
         print("Transition configuration command returned an error :", ce.value)
-    except Exception as e:
-        print("Transition command returned an error :", e.value)
+    # except Exception as e:
+    #     print("Transition command returned an error :", repr(e))

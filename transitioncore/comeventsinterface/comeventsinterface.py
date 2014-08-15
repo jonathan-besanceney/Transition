@@ -34,6 +34,10 @@ class COMEventsInterface:
                 the app.
             - have a PEP 8 COM Event Interface to use.
     """
+    def __init__(self):
+        #sub classes will replace event_list tuple with their event name (eg on_connection...) tuple
+        #in order to prevent call non-implemented methods
+        self.event_list = ()
 
     def on_connection(self, application, connect_mode, addin, custom):
         pass

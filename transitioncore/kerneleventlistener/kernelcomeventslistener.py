@@ -30,10 +30,8 @@ from transitioncore.comeventsinterface.comeventsinterface import COMEventsInterf
 class KernelComEventListener(COMEventsInterface):
     def __init__(self, kernel_instance=None):
         super(KernelComEventListener, self).__init__()
+        self.event_list = ("on_connection", "on_begin_shutdown", "on_startup_complete")
         self.kernel_instance = kernel_instance
-
-    def on_addins_update(self, custom):
-        pass
 
     def on_connection(self, application, connect_mode, addin, custom):
         # give application and add-in references to kernel
@@ -42,9 +40,6 @@ class KernelComEventListener(COMEventsInterface):
 
     def on_begin_shutdown(self, custom):
         self.kernel_instance.terminate()
-
-    def on_disconnection(self, mode, custom):
-        pass
 
     def on_startup_complete(self, custom):
         # Excel is up. Start Kernel

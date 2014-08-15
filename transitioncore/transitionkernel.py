@@ -2,7 +2,7 @@
 # Name:         excelapphandler
 # Purpose:      Handles Workbook Activate event to launch appropriate
 # application. Note this handler *will never close* Workbook
-#               application for you. Closing your apps is your responsibility.
+# application for you. Closing your apps is your responsibility.
 #
 # Author:       Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -29,8 +29,16 @@
  Handles Workbook Activate event to launch appropriate Workbook application.
  Note this handler *will kill* your Workbook applications at Excel shutdown.
  Closing your apps in a clean way is under your responsibility.
-"""
 
+
+  - Excel Add-in register/unregister methods. (from <ekoome@yahoo.com> Eric Koome's
+  /win32com/demo/excelAddin.py)
+"""
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+import inspect
 from win32com.client import DispatchWithEvents
 
 from excelapps import get_wb_app_instance
@@ -40,8 +48,10 @@ from transitioncore.comeventsinterface.excelappeventsinterface import ExcelAppEv
 from transitioncore.kerneleventlistener.kernelcomeventslistener import KernelComEventListener
 from transitioncore.kerneleventlistener.kernelconfigeventlistener import KernelConfigurationEventListener
 from transitioncore.kernelexception.kernelexception import KernelException
+
 from transitioncore.configuration import Configuration
 
+from transitioncore import TransitionAppType
 
 class TransitionKernel():
     """
@@ -88,10 +98,9 @@ class TransitionKernel():
     def run(self):
         print('TransitionKernel launched !')
 
-        print('TransitionKernel enabled add-ins : {}'.format(' '.join(
-            x for x in self._config.addin_get_enabled_list() if x)))
-        print('TransitionKernel enabled apps : {}'.format(' '.join(
-            x for x in self._config.app_get_enabled_list() if x)))
+        for app_type in TransitionAppType:
+            print('TransitionKernel enabled {} : {}'.format(app_type.value, ' '.join(
+                x for x in self._config.app_get_enabled_list(app_type) if x)))
 
         if self._waitExcelVisible is False and self._application.Visible == 0:
             print("TransitionKernel : Excel wasn't running... Exiting...")
@@ -147,6 +156,56 @@ class TransitionKernel():
 
         return wb_app
 
+    @staticmethod
+    def app_get_desc(app_type, app_name):
+        """
+        Return the description of the given app
+
+        :param app_name
+        :rtype str
+        :returns module description
+        """
+
+        try:
+            # Dynamic import of the package - to be able to load comments
+            module = inspect.importlib.import_module("{}.{}".format(app_type.value, app_name))
+            # return top comments of the package
+            return inspect.getcomments(module)
+
+        except Exception as e:
+            print("TransitionKernel.app_get_desc({}, {}) : ".format(app_type.value, app_name), repr(e))
+            return -1
+
+    @staticmethod
+    def transition_register(klass):
+        import win32com.server.register
+        import winreg
+
+        win32com.server.register.UseCommandLine(klass)
+
+        key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Office\\Excel\\Addins")
+        subkey = winreg.CreateKey(key, klass._reg_progid_)
+        winreg.SetValueEx(subkey, "CommandLineSafe", 0, winreg.REG_DWORD, 0)
+        winreg.SetValueEx(subkey, "LoadBehavior", 0, winreg.REG_DWORD, 3)
+        winreg.SetValueEx(subkey, "Description", 0, winreg.REG_SZ,
+                          klass.addin_name)
+        winreg.SetValueEx(subkey, "FriendlyName", 0, winreg.REG_SZ,
+                          klass.addin_description)
+
+    @staticmethod
+    def transition_unregister(klass):
+        import win32com.server.register
+        import winreg
+
+        win32com.server.register.UseCommandLine(klass)
+
+        try:
+            winreg.DeleteKey(winreg.HKEY_CURRENT_USER,
+                             "Software\\Microsoft\\Office\\Excel\\Addins\\" + klass._reg_progid_)
+        except WindowsError:
+            pass
+
+
 class TransitionEvents(ExcelAppEventsInterface):
     """
     This event class is used in TransitionKernel for launching appropriate workbook application.
@@ -180,4 +239,4 @@ class TransitionEvents(ExcelAppEventsInterface):
             self.current_app_list.append(wb_thread)
             self.add_event_handles(wb_thread.get_event_handles())
 
-        win32event.SetEvent(self.event)
+

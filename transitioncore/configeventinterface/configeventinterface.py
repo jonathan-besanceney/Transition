@@ -26,56 +26,32 @@
 
 
 class ConfigEventsInterface():
-    def on_addin_enable(self, addin_name):
-        """
-        Fired when an available add-in is enabled
-        :param addin_name:
-        """
-        pass
-
-    def on_addin_disable(self, addin_name):
-        """
-        Fired when an available add-in is disabled
-        :param addin_name:
-        """
-        pass
-
-    def on_addin_add(self, addin_name):
-        """
-        Fired when an add-in is added to the available add-in list
-        :param addin_name:
-        """
-        pass
-
-    def on_addin_remove(self, addin_name):
-        """
-        Fired when an add-in is removed from the available add-in list
-        :param addin_name:
-        """
-        pass
-
-    def on_app_enable(self, app_name):
+    def on_app_enable(self, app_type, app_name):
         """
         Fired when an available app is enabled
+        :param app_type: TransitionAppType Enum
         :param app_name:
         """
         pass
 
-    def on_app_disable(self, app_name):
+    def on_app_disable(self, app_type, app_name):
         """
         Fired when an available app is disabled
+        :param app_type: TransitionAppType Enum
         :param app_name:
         """
         pass
 
-    def on_app_add(self, app_name):
+    def on_app_add(self, app_type, app_name):
         """Fired when an app is added to available app list
+        :param app_type: TransitionAppType Enum
         :param app_name:
         """
         pass
 
-    def on_app_remove(self, app_name):
+    def on_app_remove(self, app_type, app_name):
         """Fired when an app is removed from available app list
+        :param app_type: TransitionAppType Enum
         :param app_name:
         """
         pass

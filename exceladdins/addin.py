@@ -29,9 +29,8 @@ Define a standard way to replace VBA in Excel Add-in by an
 external COM application launched by Transition Excel/COM Add-in.
 """
 import inspect
-import transitionconfig
-from transitioncore.configuration import addin_get_enabled_list
-
+from transitioncore import TransitionAppType
+from transitioncore.configuration import Configuration
 
 class ExcelAddin():
     """Addin Standard Interface
@@ -63,7 +62,8 @@ class ExcelAddin():
 
 class ExcelAddinManager():
     def __init__(self, excel_app):
-        self.addin_list = addin_get_enabled_list()
+        self.config = Configuration()
+        self.addin_list = self.config.app_get_enabled_list(TransitionAppType.excel_addin)
         self.addin_instance_list = list()
         self.excel_app = excel_app
 

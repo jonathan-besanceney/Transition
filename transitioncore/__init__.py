@@ -27,9 +27,9 @@
 """
  Provides :
  - some constants to all others scripts.
- - Excel Add-in register/unregister methods. (from <ekoome@yahoo.com> Eric Koome's
-  /win32com/demo/excelAddin.py)
+
 """
+from enum import Enum
 import pythoncom
 
 defaultNamedNotOptArg = pythoncom.Empty
@@ -38,26 +38,7 @@ defaultMissingArg = pythoncom.Missing
 #How many milliseconds we wait for event in main loop
 WAIT_FOR_EVENT_MSEC = 1000
 
-def transition_register(klass):
-    import winreg
 
-    key = winreg.CreateKey(winreg.HKEY_CURRENT_USER,
-                           "Software\\Microsoft\\Office\\Excel\\Addins")
-    subkey = winreg.CreateKey(key, klass._reg_progid_)
-    winreg.SetValueEx(subkey, "CommandLineSafe", 0, winreg.REG_DWORD, 0)
-    winreg.SetValueEx(subkey, "LoadBehavior", 0, winreg.REG_DWORD, 3)
-    winreg.SetValueEx(subkey, "Description", 0, winreg.REG_SZ,
-                      klass.addin_name)
-    winreg.SetValueEx(subkey, "FriendlyName", 0, winreg.REG_SZ,
-                      klass.addin_description)
-
-
-def transition_unregister(klass):
-    import winreg
-
-    try:
-        winreg.DeleteKey(winreg.HKEY_CURRENT_USER,
-                         "Software\\Microsoft\\Office\\Excel\\Addins\\" +
-                         klass._reg_progid_)
-    except WindowsError:
-        pass
+class TransitionAppType(Enum):
+    excel_addin = "exceladdins"  # python package name used in dynamic imports
+    excel_wbapp = "excelapps"
