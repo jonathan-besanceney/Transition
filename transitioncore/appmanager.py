@@ -32,110 +32,56 @@
  Note this handler *will kill* your Workbook applications at Excel shutdown.
  Closing your apps in a clean way is under your responsibility.
 """
-import sys
-# specify free threading, common way to think threading.
-sys.coinit_flags = 0
 
-from threading import Thread
-import threading
-
-import win32event
-import pythoncom
 from win32com.client import DispatchWithEvents
 
-from excelapps import launch_wb_app
-from transitioncore import WAIT_FOR_EVENT_MSEC, defaultNamedNotOptArg
-from transitioncore.comeventsinterface.excelappevents import ExcelAppEvents
-import transitionconfig
+from transitioncore import TransitionAppType
+from transitioncore.comeventslistener.amappeventlistener import AppManagerExcelEventListener
 
-class WorkbookAppHandler(Thread):
+
+class AppManager():
     """Excel listener thread.
     Launched on TransitionMain.OnConnection()
     """
 
-    def __init__(self, xlApp, waitExcelVisible=False):
+    com_app_event_class = {"excel": AppManagerExcelEventListener, }
+
+    def __init__(self, com_app, config):
         """
         Set up handler thread
-        :param xlApp: Excel Application instance
-        :param waitExcelVisible: tells to the handler to wait until Excel is visible before launch
+        :param com_app: COM Application instance
         """
-        super(WorkbookAppHandler, self).__init__()
-        self.xlApp = xlApp
-        self._ask_quit = False
-        self._waitExcelVisible = waitExcelVisible
-        self.thread_name = threading.currentThread().getName()
-        self.wb_app_thread_list = list()
+        self.com_app = com_app
+        self.com_app_type = None
+        self.com_app_events = None
+        self.config = config
+        self.app_list = list()
+        self.addin_list = list()
 
-    def quit(self):
-        """Ask for thread termination"""
-        self._ask_quit = True
+        # What kind of COM Application it is ?
+        app_description = repr(self.com_app)
+        if app_description.find("excel"):
+            self.com_app_type = "excel"
+            self.com_app_events = self.com_app_event_class["excel"]
+
+    def run_app(self, app_type, app_name):
+        #
+        pass
+
+    def terminate_app(self, app_type, app_name):
+        pass
 
     def run(self):
-        print('WorkbookAppHandler {} launched !'.format(self.name))
-        print('WorkbookAppHandler {} enabled apps : {}'
-              .format(self.name, ' '.join(x for x in transitionconfig.app_get_enabled_list() if x)))
-        try:
-            if self._waitExcelVisible is False and self.xlApp.Visible == 0:
-                print("WorkbookAppHandler {} : Excel wasn't running... Exiting...".format(self.name))
-                self.xlApp.Quit()
-            else:
-                if self.xlApp.EnableEvents is False:
-                    print("WorkbookAppHandler {} : Enabling Events !".format(self.name))
-                    self.xlApp.EnableEvents = True
+        if self.com_app_events is not None:
+            #launch COM App Addins
 
-                self.xlApp = DispatchWithEvents(self.xlApp, WorkbookHandlerEvents)
-                self.xlApp.name = "WorkbookAppHandler ExcelEvent"
-                self.xlApp.wb_app_thread_list = self.wb_app_thread_list
+            #See for already opened documents. Are they handled ?
 
-                # open workbook apps for already opened workbooks
-                for wb in self.xlApp.Workbooks:
-                    wb_thread = launch_wb_app(wb)
-                    if wb_thread is not None:
-                        self.wb_app_thread_list.append(wb_thread)
+            #Start looking for COM App events
+            self.com_app_events = DispatchWithEvents(self.com_app, self.com_app_events)
+            self.com_app_events.set_app_manager(self)
+            print("addin_list", repr(self.addin_list))
 
-                # Main loop. Will stop at excel termination. See TransitionMain.OnDisconnection
-                while self._ask_quit is False:
-                    win32event.WaitForSingleObject(self.xlApp.event, WAIT_FOR_EVENT_MSEC)
+    def terminate(self):
+        pass
 
-                print("WorkbookAppHandler {} is terminating...".format(self.name))
-
-                # kill opened workbook apps
-                for wb_thread in self.wb_app_thread_list:
-                    if wb_thread in threading.enumerate():
-                        print("WorkbookAppHandler {} : Killing {}...".format(self.name, wb_thread.name))
-                        wb_thread.quit()
-
-        except KeyboardInterrupt:
-            print("WorkbookAppHandler {} : interruption exception".format(self.name),
-                  "intercepted (termination asked) !")
-        except pythoncom.com_error as details:
-            print("WorkbookAppHandler {} Exception (com_error) : {}".format(self.name, details))
-        # except Exception as e:
-        #     print("WorkbookAppHandler {} Exception".format(self.name, e))
-
-        self.xlApp = None
-        print("WorkbookAppHandler {} terminated...".format(self.name))
-
-
-class WorkbookHandlerEvents(ExcelAppEvents):
-    """
-    This event class is used in WorkbookAppHandler for launching appropriate workbook application.
-    """
-
-    def __init__(self):
-        super(WorkbookHandlerEvents, self).__init__()
-        self.wb_app_thread_list = list()
-
-    def OnWindowActivate(self, Wb=defaultNamedNotOptArg, Wn=defaultNamedNotOptArg):
-        """
-        OnWindowActivate is responsible for launching the right workbook handler.
-        IMPORTANT : Workbook apps are responsible for their own termination.
-        :param Wb: Workbook object
-        :param Wn: Window object
-        """
-        print("{} OnWindowActivate {} {}".format(self.name, Wb.Name, Wn.Caption))
-        wb_thread = launch_wb_app(Wb)
-        if wb_thread is not None:
-            self.wb_app_thread_list.append(wb_thread)
-
-        win32event.SetEvent(self.event)

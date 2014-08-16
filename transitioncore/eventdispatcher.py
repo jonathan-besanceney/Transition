@@ -60,5 +60,5 @@ class TransitionEventDispatcher():
                         getattr(event_listener, event_method)(event_args)
                 except AttributeError as ae:
                     print("TransitionEventDispatcher._fire_event: except AttributeError calling", event_method, ae)
-                except TypeError as te:
-                    print("TransitionEventDispatcher._fire_event: except TypeError calling", event_method, te)
+                # except TypeError as te:
+                #    print("TransitionEventDispatcher._fire_event: except TypeError calling", event_method, te)

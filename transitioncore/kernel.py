@@ -43,15 +43,14 @@ from win32com.client import DispatchWithEvents
 
 from excelapps import get_wb_app_instance
 from excelapps.appskell import ExcelWorkbookAppSkell
-from transitioncore import defaultNamedNotOptArg
-from transitioncore.comeventsinterface.excelappeventsinterface import ExcelAppEventsInterface
+
 from transitioncore.eventslistener.kernelcomeventslistener import KernelComEventListener
 from transitioncore.eventslistener.kernelconfigeventlistener import KernelConfigurationEventListener
 from transitioncore.exceptions.kernelexception import KernelException
 from transitioncore.configuration import Configuration
 
 from transitioncore import TransitionAppType
-
+from transitioncore.appmanager import AppManager
 
 class TransitionKernel():
     """
@@ -74,6 +73,9 @@ class TransitionKernel():
 
         # KernelComEventsListener instantiation
         self._com_events_listener = KernelComEventListener(self)
+
+        # App Manager
+        self._app_manager = None
 
     def set_application(self, application):
         self._application = application
@@ -113,13 +115,12 @@ class TransitionKernel():
                 print("TransitionKernel : Enabling Events !")
                 self._application.EnableEvents = True
 
-            # TODO : move com event handling to app_manager. kernel is a bandmaster :)
-            self._application = DispatchWithEvents(self._application, TransitionEvents)
-            self._application.name = "TransitionKernel ExcelEvent"
+            self._app_manager = AppManager(self._application, self._config)
+            self._app_manager.run()
 
     def terminate(self):
         print("TransitionKernel is terminating...")
-        self._application = None
+        self._app_manager.terminate()
         print("TransitionKernel terminated...")
 
     def launch_wb_app(self, wb) -> ExcelWorkbookAppSkell:
@@ -195,39 +196,5 @@ class TransitionKernel():
                              "Software\\Microsoft\\Office\\Excel\\Addins\\" + klass._reg_progid_)
         except WindowsError:
             pass
-
-
-class TransitionEvents(ExcelAppEventsInterface):
-    """
-    This event class is used in TransitionKernel for launching appropriate workbook application.
-    """
-
-    def __init__(self):
-        super(TransitionEvents, self).__init__()
-        self.current_app_list = list()
-
-    def add_event_handles(self, pyhandles):
-        for pyhandle in pyhandles:
-            self.add_event_handle(pyhandle)
-
-    def add_event_handle(self, pyhandle):
-        """This method will refer to TransitionKernel.add_event_handle"""
-        pass
-
-    def launch_wb_app(self, Wb) -> ExcelWorkbookAppSkell:
-        pass
-
-    def OnWindowActivate(self, Wb=defaultNamedNotOptArg, Wn=defaultNamedNotOptArg):
-        """
-        OnWindowActivate is responsible for launching the right workbook handler.
-        IMPORTANT : Workbook apps are responsible for their own termination.
-        :param Wb: Workbook object
-        :param Wn: Window object
-        """
-        print("{} OnWindowActivate {} {}".format(self.name, Wb.Name, Wn.Caption))
-        wb_thread = self.launch_wb_app(Wb)
-        if wb_thread is not None:
-            self.current_app_list.append(wb_thread)
-            self.add_event_handles(wb_thread.get_event_handles())
 
 
