@@ -45,13 +45,13 @@ from excelapps import get_wb_app_instance
 from excelapps.appskell import ExcelWorkbookAppSkell
 from transitioncore import defaultNamedNotOptArg
 from transitioncore.comeventsinterface.excelappeventsinterface import ExcelAppEventsInterface
-from transitioncore.kerneleventlistener.kernelcomeventslistener import KernelComEventListener
-from transitioncore.kerneleventlistener.kernelconfigeventlistener import KernelConfigurationEventListener
-from transitioncore.kernelexception.kernelexception import KernelException
-
+from transitioncore.eventslistener.kernelcomeventslistener import KernelComEventListener
+from transitioncore.eventslistener.kernelconfigeventlistener import KernelConfigurationEventListener
+from transitioncore.exceptions.kernelexception import KernelException
 from transitioncore.configuration import Configuration
 
 from transitioncore import TransitionAppType
+
 
 class TransitionKernel():
     """
@@ -64,14 +64,16 @@ class TransitionKernel():
         :param excel_app: Excel Application instance
         :param waitExcelVisible: tells to the handler to wait until Excel is visible before launch
         """
-        super(TransitionKernel, self).__init__()
         self._application = None
         self._addin = None
         self._waitExcelVisible = waitExcelVisible
-        self._com_event_listener = KernelComEventListener(self)
+
         self._config = Configuration()
-        self._config_event_listener = KernelConfigurationEventListener(self)
-        self._config.add_config_event_listener(self._config_event_listener)
+        # register to configuration events
+        self._config.add_event_listener(KernelConfigurationEventListener(self))
+
+        # KernelComEventsListener instantiation
+        self._com_events_listener = KernelComEventListener(self)
 
     def set_application(self, application):
         self._application = application
@@ -89,11 +91,12 @@ class TransitionKernel():
             raise KernelException("TransitionKernel : addin is not defined")
         return self._addin
 
-    def get_com_event_listener(self) -> KernelComEventListener:
+    def get_kernel_com_events_listener(self):
         """
-        :return: KernelComEventListener instance
+        :rtype : KernelComEventListener
+        :return:  KernelComEventListener instance
         """
-        return self._com_event_listener
+        return self._com_events_listener
 
     def run(self):
         print('TransitionKernel launched !')
@@ -110,24 +113,12 @@ class TransitionKernel():
                 print("TransitionKernel : Enabling Events !")
                 self._application.EnableEvents = True
 
+            # TODO : move com event handling to app_manager. kernel is a bandmaster :)
             self._application = DispatchWithEvents(self._application, TransitionEvents)
             self._application.name = "TransitionKernel ExcelEvent"
 
-            # open workbook apps for already opened workbooks
-            for wb in self._application.Workbooks:
-                wb_app = self.launch_wb_app(wb)
-                if wb_app is not None:
-                    self._current_app_list.append(wb_app)
-
     def terminate(self):
         print("TransitionKernel is terminating...")
-
-        # kill opened workbook apps
-        for wb_app in self._current_app_list:
-            if wb_app in threading.enumerate():
-                print("TransitionKernel : Killing {}...".format(wb_app.name))
-                wb_app.quit()
-
         self._application = None
         print("TransitionKernel terminated...")
 

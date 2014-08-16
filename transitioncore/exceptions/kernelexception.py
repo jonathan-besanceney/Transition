@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        kernelexception
+# Purpose:     KernelException implementation
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -25,7 +25,7 @@
 # -*- coding: utf8 -*-
 
 
-class ConfigurationException(Exception):
+class KernelException(Exception):
     def __init__(self, value):
         self.value = value
 

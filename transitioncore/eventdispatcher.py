@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Name:        transitioneventdispatcher.py
+# Name:        eventdispatcher.py
 # Purpose:     Dispatch registered events. This is a quite basic implementation.
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>

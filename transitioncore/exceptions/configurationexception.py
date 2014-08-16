@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        configurationexception
+# Purpose:     ConfigurationException implementation
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -25,33 +25,9 @@
 # -*- coding: utf8 -*-
 
 
-class ConfigEventsInterface():
-    def on_app_enable(self, app_type, app_name):
-        """
-        Fired when an available app is enabled
-        :param app_type: TransitionAppType Enum
-        :param app_name:
-        """
-        pass
+class ConfigurationException(Exception):
+    def __init__(self, value):
+        self.value = value
 
-    def on_app_disable(self, app_type, app_name):
-        """
-        Fired when an available app is disabled
-        :param app_type: TransitionAppType Enum
-        :param app_name:
-        """
-        pass
-
-    def on_app_add(self, app_type, app_name):
-        """Fired when an app is added to available app list
-        :param app_type: TransitionAppType Enum
-        :param app_name:
-        """
-        pass
-
-    def on_app_remove(self, app_type, app_name):
-        """Fired when an app is removed from available app list
-        :param app_type: TransitionAppType Enum
-        :param app_name:
-        """
-        pass
+    def __str__(self):
+        return repr(self.value)

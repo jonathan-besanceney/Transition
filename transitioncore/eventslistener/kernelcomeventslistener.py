@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        kernelcomeventslistener
+# Purpose:     COMEventsInterface implementation for Kernel usage
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -23,3 +23,24 @@
 #    along with Transition.  If not, see <http://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
+
+from transitioncore.eventsinterface.comeventsinterface import COMEventsInterface
+
+
+class KernelComEventListener(COMEventsInterface):
+    def __init__(self, kernel_instance=None):
+        super(KernelComEventListener, self).__init__()
+        self.event_list = ("on_connection", "on_begin_shutdown", "on_startup_complete")
+        self.kernel_instance = kernel_instance
+
+    def on_connection(self, application, connect_mode, addin, custom):
+        # give application and add-in references to kernel
+        self.kernel_instance.set_application(application)
+        self.kernel_instance.set_addin(addin)
+
+    def on_begin_shutdown(self, custom):
+        self.kernel_instance.terminate()
+
+    def on_startup_complete(self, custom):
+        # COM application (Excel) is up. Start Kernel
+        self.kernel_instance.run()

@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        exceptions
+# Purpose:     exceptions package
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -23,34 +23,3 @@
 #    along with Transition.  If not, see <http://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
-
-from transitioncore.configeventinterface.configeventinterface import ConfigEventsInterface
-
-
-class KernelConfigurationEventListener(ConfigEventsInterface):
-    def __init__(self, kernel=None):
-        self.kernel = kernel
-
-    def on_addin_add(self, addin_name):
-        pass
-
-    def on_addin_disable(self, addin_name):
-        pass
-
-    def on_addin_enable(self, addin_name):
-        pass
-
-    def on_addin_remove(self, addin_name):
-        pass
-
-    def on_app_add(self, app_name):
-        pass
-
-    def on_app_disable(self, app_name):
-        pass
-
-    def on_app_enable(self, app_name):
-        pass
-
-    def on_app_remove(self, app_name):
-        pass

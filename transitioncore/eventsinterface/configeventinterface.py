@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        configeventsinterface
+# Purpose:     Configuration Events Interface. Use it with
+#              TranstitionEventDispatcher
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -23,3 +24,35 @@
 #    along with Transition.  If not, see <http://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
+
+
+class ConfigEventsInterface():
+    def on_app_enable(self, app_type, app_name):
+        """
+        Fired when an available app is enabled
+        :param app_type: TransitionAppType Enum
+        :param app_name:
+        """
+        pass
+
+    def on_app_disable(self, app_type, app_name):
+        """
+        Fired when an available app is disabled
+        :param app_type: TransitionAppType Enum
+        :param app_name:
+        """
+        pass
+
+    def on_app_add(self, app_type, app_name):
+        """Fired when an app is added to available app list
+        :param app_type: TransitionAppType Enum
+        :param app_name:
+        """
+        pass
+
+    def on_app_remove(self, app_type, app_name):
+        """Fired when an app is removed from available app list
+        :param app_type: TransitionAppType Enum
+        :param app_name:
+        """
+        pass

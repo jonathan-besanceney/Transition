@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        comeventsinterface
+# Purpose:     comeventsinterface package
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #

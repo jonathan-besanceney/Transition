@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        eventsinterface
+# Purpose:     eventsinterface package
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #

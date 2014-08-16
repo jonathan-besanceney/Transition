@@ -40,11 +40,7 @@ import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
-from threading import Thread
-
 from win32com.client import DispatchWithEvents
-import win32event
-import pythoncom
 import xl as pyvot
 
 from transitioncore.comeventsinterface.excelwbeventsinterface import ExcelWbEventsInterface

@@ -51,9 +51,9 @@ from win32com.client import gencache
 import pythoncom
 import win32trace
 
-from transitioncore.transitioneventdispatcher import TransitionEventDispatcher
-from transitioncore.transitionkernel import TransitionKernel
-from transitioncore.comeventsinterface.comeventsinterface import COMEventsInterface
+from transitioncore.eventdispatcher import TransitionEventDispatcher
+from transitioncore.kernel import TransitionKernel
+from transitioncore.eventsinterface.comeventsinterface import COMEventsInterface
 
 # Support for COM objects we use.
 # Excel 2010
@@ -94,8 +94,12 @@ class TransitionCOMEventsListener(TransitionEventDispatcher):
         self.name = TransitionCOMEventsListener.addin_name
         print(self.addin_name, ": init", self.name)
         self.excel_app = None
+
+        # Bootstrap kernel
         self._kernel = TransitionKernel(True)
-        self.add_event_listener(self._kernel.get_com_event_listener())
+
+        # reverse-registering kernel com events listener
+        self.add_event_listener(self._kernel.get_kernel_com_events_listener())
 
     def OnConnection(self, application, connect_mode, addin, custom):
         """
@@ -156,9 +160,12 @@ if __name__ == '__main__':
             + "and close in a separate thread.\n"
             + "Handler tries to launch appropriate excelapps to handle the workbooks.\n"
             + "Registered exceladdins are launched at startup.\n"
-            + "Running transition.py without parameters registers add-in. See options bellow.")
+            + "Running transition.py without parameters registers add-in.\n"
+            + "See optional arguments bellow :")
 
         group = parser.add_mutually_exclusive_group()
+
+        # TODO : cleanup arg list (like Configuration interface)
 
         group.add_argument("--debug", help="registers Transition Excel Add-in in debug mode.\n"
                                            + "This option enables execution traces to be collected by the config add-in.",
@@ -171,12 +178,12 @@ if __name__ == '__main__':
         group.add_argument("-al", "--app-list", help="lists available excel apps", action="store_true")
         group.add_argument("-ae", "--app-enable", help="enables available excel app", type=str,
                            choices=config.app_get_disabled_list(TransitionAppType.excel_wbapp))
-        group.add_argument("-ad", "--app-disable", help="disables previously enabled excel_app", type=str,
+        group.add_argument("-ad", "--app-disable", help="disables previously enabled excel app", type=str,
                            choices=config.app_get_enabled_list(TransitionAppType.excel_wbapp))
 
         group.add_argument("-dl", "--addin-list", help="lists available excel add-ins", action="store_true")
         group.add_argument("-de", "--addin-enable", help="enables available excel add-ins", type=str,
-                           choices=config.app_get_enabled_list(TransitionAppType.excel_addin))
+                           choices=config.app_get_disabled_list(TransitionAppType.excel_addin))
         group.add_argument("-dd", "--addin-disable", help="disables previously enabled excel add-ins", type=str,
                            choices=config.app_get_enabled_list(TransitionAppType.excel_addin))
 

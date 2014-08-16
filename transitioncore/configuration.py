@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        configuration
+# Purpose:     Configuration Class
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -28,20 +28,21 @@ import pickle
 import os
 from os.path import expanduser
 import pkgutil
-
 import sys
+
 from transitioncore import TransitionAppType
+
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 import exceladdins
 import excelapps
-from transitioncore.transitioneventdispatcher import TransitionEventDispatcher
-from transitioncore.configeventinterface.configeventinterface import ConfigEventsInterface
-from transitioncore.kernelexception.configurationexception import ConfigurationException
+from transitioncore.eventdispatcher import TransitionEventDispatcher
+from transitioncore.eventsinterface.configeventinterface import ConfigEventsInterface
+from transitioncore.exceptions.configurationexception import ConfigurationException
 
 
-import transitioncore.transitionkernel
+import transitioncore.kernel
 
 
 class Configuration(TransitionEventDispatcher):
@@ -57,7 +58,7 @@ class Configuration(TransitionEventDispatcher):
         #all add-ins and apps regardless their statuses
         self._app_available_list = {TransitionAppType.excel_wbapp: list(),
                                     TransitionAppType.excel_addin: list()}
-        self.app_update_available_list(None, False)
+        self._update_app_available_list(None, False)
 
         #enabled add-ins and apps
         self._app_enabled_list = {TransitionAppType.excel_wbapp: list(),
@@ -74,7 +75,7 @@ class Configuration(TransitionEventDispatcher):
 
         self._read_apps_conf()
 
-    def get_app_pkg_path(self, app_type):
+    def app_get_pkg_path(self, app_type):
         """
         Returns app package path
         :param: TransitionAppType
@@ -82,7 +83,7 @@ class Configuration(TransitionEventDispatcher):
         """
         return self._pkg_app_path[app_type]
 
-    def app_update_available_list(self, app_type=None, fire_event=True):
+    def _update_app_available_list(self, app_type=None, fire_event=True):
         """
         Updates available app list. Fire on_app_add(self, addin_name) or on_app_remove(self, addin_name)
         on change
@@ -90,7 +91,7 @@ class Configuration(TransitionEventDispatcher):
 
         if app_type is None:
             for app_type in TransitionAppType:
-                self.app_update_available_list(app_type, fire_event)
+                self._update_app_available_list(app_type, fire_event)
         else:
             app_list = list()
             # get available sub-packages of excelapps watching for addintion
@@ -107,6 +108,23 @@ class Configuration(TransitionEventDispatcher):
                     self._app_available_list[app_type].remove(name)
                     if fire_event:
                         self._fire_event("on_app_remove", (app_type, name))
+
+    def _update_app_disabled_list(self, app_type=None):
+        """
+
+        :param app_type: TransitionAppType Enum
+        """
+        if app_type is None:
+            for app_type in TransitionAppType:
+                self._update_app_disabled_list(app_type)
+        else:
+            try:
+                # get available sub-packages of app_type
+                for _, name, is_package in pkgutil.iter_modules(self._pkg_app_path[app_type]):
+                    if is_package and name not in self._app_enabled_list[app_type]:
+                        self._app_disabled_list[app_type].append(name)
+            except TypeError as te:
+                print("TypeError", repr(self._app_enabled_list), repr(te))
 
     def _read_apps_conf(self):
         # Creates apps conf file if not exists
@@ -167,28 +185,11 @@ class Configuration(TransitionEventDispatcher):
             self._update_app_disabled_list(app_type)
 
             #fire app_disable event
-            self._fire_event("app_disable", (app_type, app_name))
+            self._fire_event("on_app_disable", (app_type, app_name))
         else:
             mesg = "Configuration.app_disable() : Can't disable unregistered {} app !".format(app_name)
             print(mesg)
             raise ConfigurationException(mesg)
-
-    def _update_app_disabled_list(self, app_type=None):
-        """
-
-        :param app_type: TransitionAppType Enum
-        """
-        if app_type is None:
-            for app_type in TransitionAppType:
-                self._update_app_disabled_list(app_type)
-        else:
-            try:
-                # get available sub-packages of app_type
-                for _, name, is_package in pkgutil.iter_modules(self._pkg_app_path[app_type]):
-                    if is_package and name not in self._app_enabled_list[app_type]:
-                        self._app_disabled_list[app_type].append(name)
-            except TypeError as te:
-                print("TypeError", repr(self._app_enabled_list))
 
     def app_get_disabled_list(self, app_type):
         """
@@ -257,4 +258,4 @@ class Configuration(TransitionEventDispatcher):
             else:
                 print("\n* {} [DISABLED] : \n".format(name))
 
-            print(transitioncore.transitionkernel.TransitionKernel.app_get_desc(app_type, name))
+            print(transitioncore.kernel.TransitionKernel.app_get_desc(app_type, name))

@@ -25,6 +25,8 @@
 #    along with Transition.  If not, see <http://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
+
+# TODO : refactor this to manage all app_type. Events must move.
 """
  Handles Workbook Activate event to launch appropriate Workbook application.
  Note this handler *will kill* your Workbook applications at Excel shutdown.
@@ -43,7 +45,7 @@ from win32com.client import DispatchWithEvents
 
 from excelapps import launch_wb_app
 from transitioncore import WAIT_FOR_EVENT_MSEC, defaultNamedNotOptArg
-from transitioncore.excelappevents import ExcelAppEvents
+from transitioncore.comeventsinterface.excelappevents import ExcelAppEvents
 import transitionconfig
 
 class WorkbookAppHandler(Thread):

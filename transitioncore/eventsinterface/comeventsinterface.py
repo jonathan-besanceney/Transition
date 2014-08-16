@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Name:        comeventsinterface.py
+# Name:        eventsinterface.py
 # Purpose:     COM Add-in Events Interface. You may want subclass it to :
 #              - register an event listener on COM Add-in Events triggered by
 #                the app.
