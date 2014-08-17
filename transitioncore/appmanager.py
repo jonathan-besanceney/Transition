@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------
 # Name:         excelapphandler
 # Purpose:      Handles Workbook Activate event to launch appropriate
-#               application. Note this handler *will never close* Workbook
+# application. Note this handler *will never close* Workbook
 #               application for you. Closing your apps is your responsibility.
 #
 # Author:       Jonathan Besanceney <jonathan.besanceney@gmail.com>
@@ -33,9 +33,11 @@
  Closing your apps in a clean way is under your responsibility.
 """
 
+import inspect
+
 from win32com.client import DispatchWithEvents
 
-from transitioncore import TransitionAppType
+from transitioncore import TransitionAppType, transition_app_type_tree, transition_app_path
 from transitioncore.comeventslistener.amappeventlistener import AppManagerExcelEventListener
 
 
@@ -55,32 +57,62 @@ class AppManager():
         self.com_app_type = None
         self.com_app_events = None
         self.config = config
-        self.app_list = list()
-        self.addin_list = list()
+        self.app_list = {"app": list(), "addin": list()}
+        self.app_path = {"app": None, "addin": None}
+        self.started_app_list = {}
 
         # What kind of COM Application it is ?
         app_description = repr(self.com_app)
         if app_description.find("excel"):
             self.com_app_type = "excel"
-            self.com_app_events = self.com_app_event_class["excel"]
 
-    def run_app(self, app_type, app_name):
-        #
-        pass
+        if self.com_app_type is not None:
+            # Retrieve stuff relative to COM Application
+            self.com_app_events = self.com_app_event_class[self.com_app_type]
+            self.app_list["app"] = self.config.app_get_enabled_list(transition_app_type_tree[self.com_app_type]["app"])
+            self.app_list["addin"] = self.config.app_get_enabled_list(
+                transition_app_type_tree[self.com_app_type]["addin"])
 
-    def terminate_app(self, app_type, app_name):
+    def run_app(self, app_type, app_name, document=None):
+        """
+        Import, Instanciate and call run()
+        :param app_type: TransitionAppType
+        :param app_name: Application Name
+        :param document: opened document (eg workbook) to link with a document app
+        """
+        #TODO make it works for document apps
+
+        print("AppManager.run_app()", app_type.value, app_name)
+        # Import app module
+        excel_addin_module = inspect.importlib.import_module("{}.{}".format(app_type.value, app_name))
+
+        # Start app
+        app = excel_addin_module.app_class(self.com_app)
+        app.run()
+
+        # Register app
+        if app_type not in self.started_app_list.items():
+            self.started_app_list[app_type] = list()
+
+        self.started_app_list[app_type].append(app)
+
+    def terminate_app(self, app_type, app_name, document=None):
         pass
 
     def run(self):
         if self.com_app_events is not None:
             #launch COM App Addins
+            for addin in self.app_list["addin"]:
+                self.run_app(transition_app_type_tree[self.com_app_type]["addin"], addin)
 
             #See for already opened documents. Are they handled ?
 
             #Start looking for COM App events
             self.com_app_events = DispatchWithEvents(self.com_app, self.com_app_events)
             self.com_app_events.set_app_manager(self)
-            print("addin_list", repr(self.addin_list))
+        else:
+            #TODO Raise a kind of "not initialized" exception
+            pass
 
     def terminate(self):
         pass

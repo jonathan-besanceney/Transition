@@ -61,6 +61,7 @@ class ExcelAddin():
 
 
 class ExcelAddinManager():
+    #TODO : remove this class when AppManager is ok
     def __init__(self, excel_app):
         self.config = Configuration()
         self.addin_list = self.config.app_get_enabled_list(TransitionAppType.excel_addin)

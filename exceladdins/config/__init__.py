@@ -50,6 +50,7 @@ import win32event
 
 from exceladdins import addin
 from exceladdins.config import config_box, configmain
+from transitioncore import TransitionAppType
 
 
 class ButtonEvent:
@@ -62,6 +63,7 @@ class ButtonEvent:
         self.script_name = "{}{}".format(os.path.abspath(os.path.dirname(__file__)), "\\configmain.py")
 
     def OnClick(self, button, cancel):
+        print("click !")
         #check if we already launched the dialog box
         if self.dialog is not None:
             #check if the dialog still running (Poll() return None)
@@ -119,8 +121,8 @@ class ConfigAddin(addin.ExcelAddin):
         self.btnMyButton = None
         print(self.name, "terminated")
 
-#declare our add-in. ExcelAddinManager will search module.excel_addin attribute to start this add-in
-excel_addin = ConfigAddin
+#declare our add-in. AppManager will search module.app_class attribute to start this
+app_class = ConfigAddin
 
 
 if __name__ == "__main__":

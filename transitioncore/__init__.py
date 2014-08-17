@@ -32,13 +32,18 @@
 from enum import Enum
 import pythoncom
 
+import exceladdins
+import excelapps
+
 defaultNamedNotOptArg = pythoncom.Empty
 defaultMissingArg = pythoncom.Missing
-
-#How many milliseconds we wait for event in main loop
-WAIT_FOR_EVENT_MSEC = 1000
-
 
 class TransitionAppType(Enum):
     excel_addin = "exceladdins"  # python package name (used in dynamic imports)
     excel_wbapp = "excelapps"
+
+transition_app_type_tree = {"excel" : {"addin" : TransitionAppType.excel_addin,
+                                       "app" : TransitionAppType.excel_wbapp}}
+
+transition_app_path = {TransitionAppType.excel_wbapp: excelapps.__path__ ,
+                        TransitionAppType.excel_addin: exceladdins.__path__}

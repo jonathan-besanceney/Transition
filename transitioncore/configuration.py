@@ -30,13 +30,12 @@ from os.path import expanduser
 import pkgutil
 import sys
 
-from transitioncore import TransitionAppType
+from transitioncore import TransitionAppType, transition_app_path
 
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-import exceladdins
-import excelapps
+
 from transitioncore.eventdispatcher import TransitionEventDispatcher
 from transitioncore.eventsinterface.configeventinterface import ConfigEventsInterface
 from transitioncore.exceptions.configurationexception import ConfigurationException
@@ -50,10 +49,6 @@ class Configuration(TransitionEventDispatcher):
 
     def __init__(self):
         super(Configuration, self).__init__(ConfigEventsInterface)
-
-        #add-ins and apps sub-packages path
-        self._pkg_app_path = {TransitionAppType.excel_wbapp: excelapps.__path__,
-                              TransitionAppType.excel_addin: exceladdins.__path__}
 
         #all add-ins and apps regardless their statuses
         self._app_available_list = {TransitionAppType.excel_wbapp: list(),
@@ -75,14 +70,6 @@ class Configuration(TransitionEventDispatcher):
 
         self._read_apps_conf()
 
-    def app_get_pkg_path(self, app_type):
-        """
-        Returns app package path
-        :param: TransitionAppType
-        :return: path to app package
-        """
-        return self._pkg_app_path[app_type]
-
     def _update_app_available_list(self, app_type=None, fire_event=True):
         """
         Updates available app list. Fire on_app_add(self, addin_name) or on_app_remove(self, addin_name)
@@ -95,7 +82,7 @@ class Configuration(TransitionEventDispatcher):
         else:
             app_list = list()
             # get available sub-packages of excelapps watching for addintion
-            for _, name, is_package in pkgutil.iter_modules(self._pkg_app_path[app_type]):
+            for _, name, is_package in pkgutil.iter_modules(transition_app_path[app_type]):
                 if is_package and name not in self._app_available_list[app_type]:
                     app_list.append(name)
                     self._app_available_list[app_type].append(name)
@@ -120,7 +107,7 @@ class Configuration(TransitionEventDispatcher):
         else:
             try:
                 # get available sub-packages of app_type
-                for _, name, is_package in pkgutil.iter_modules(self._pkg_app_path[app_type]):
+                for _, name, is_package in pkgutil.iter_modules(transition_app_path[app_type]):
                     if is_package and name not in self._app_enabled_list[app_type]:
                         self._app_disabled_list[app_type].append(name)
             except TypeError as te:
@@ -218,7 +205,7 @@ class Configuration(TransitionEventDispatcher):
             for app_type in TransitionAppType:
                 app_list.extend(self.app_get_list(app_type))
         else:
-            for _, name, is_package in pkgutil.iter_modules(self._pkg_app_path[app_type]):
+            for _, name, is_package in pkgutil.iter_modules(transition_app_path[app_type]):
                 if is_package and name in self._app_enabled_list[app_type]:
                     app_list.append((name, True))
                 elif is_package:
