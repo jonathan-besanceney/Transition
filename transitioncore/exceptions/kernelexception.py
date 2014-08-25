@@ -27,6 +27,7 @@
 
 class KernelException(Exception):
     def __init__(self, value):
+        super(KernelException, self).__init__()
         self.value = value
 
     def __str__(self):

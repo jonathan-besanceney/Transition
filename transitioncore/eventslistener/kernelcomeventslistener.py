@@ -35,7 +35,7 @@ class KernelComEventListener(COMEventsInterface):
 
     def on_connection(self, application, connect_mode, addin, custom):
         # give application and add-in references to kernel
-        self.kernel_instance.set_application(application)
+        self.kernel_instance.set_com_app(application)
         self.kernel_instance.set_addin(addin)
 
     def on_begin_shutdown(self, custom):

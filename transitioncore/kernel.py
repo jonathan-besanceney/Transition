@@ -26,23 +26,14 @@
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
 """
- Handles Workbook Activate event to launch appropriate Workbook application.
- Note this handler *will kill* your Workbook applications at Excel shutdown.
- Closing your apps in a clean way is under your responsibility.
-
-
-  - Excel Add-in register/unregister methods. (from <ekoome@yahoo.com> Eric Koome's
-  /win32com/demo/excelAddin.py)
+    Acts like a band master ;)
+    (Try to) Provides useful resources to others.
 """
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-import inspect
-from win32com.client import DispatchWithEvents
-
-from excelapps import get_wb_app_instance
-from excelapps.appskell import ExcelWorkbookAppSkell
+import rpyc
 
 from transitioncore.eventslistener.kernelcomeventslistener import KernelComEventListener
 from transitioncore.eventslistener.kernelconfigeventlistener import KernelConfigurationEventListener
@@ -52,23 +43,38 @@ from transitioncore.configuration import Configuration
 from transitioncore import TransitionAppType
 from transitioncore.appmanager import AppManager
 
+
 class TransitionKernel():
     """
-
+    Acts like a band master ;)
+    (Try to) Provides useful resources to others.
     """
 
-    def __init__(self, waitExcelVisible=False):
+    # TODO provide appmanager an excel event
+
+    def __init__(self):
         """
-        Set up handler thread
-        :param excel_app: Excel Application instance
-        :param waitExcelVisible: tells to the handler to wait until Excel is visible before launch
+        Kernel Init
         """
-        self._application = None
+        self._com_app = None
+        self._com_app_type = None
         self._addin = None
-        self._waitExcelVisible = waitExcelVisible
 
         self._config = Configuration()
-        # register to configuration events
+
+        # TODO : learn more... idea seems clear but I make something wrong.
+        # get config like ConfigService is already launched
+        # try:
+        #     self._config = rpyc.connect("localhost", port=22).root
+        # except ConnectionRefusedError:
+        #     # Not launched, must do it
+        #     from subprocess import Popen
+        #     sys.executable = os.path.join(sys.exec_prefix, 'pythonw.exe')
+        #     Popen([sys.executable, PATHTOCONFIGSERVICE"ConfigService.py"])
+        #     self._config = rpyc.connect("localhost", port=22).root
+
+        # register to configuration events. See KernelConfigurationEventListener
+        # for further info on events and kernel actions.
         self._config.add_event_listener(KernelConfigurationEventListener(self))
 
         # KernelComEventsListener instantiation
@@ -77,13 +83,39 @@ class TransitionKernel():
         # App Manager
         self._app_manager = None
 
-    def set_application(self, application):
-        self._application = application
+    @property
+    def config(self):
+        """Get Configuration instance"""
+        return self._config
 
-    def get_application(self):
-        if self._application is None:
+    def set_com_app(self, com_app):
+        """Set COM App and determine its type"""
+        # What kind of COM Application it is ?
+        app_description = repr(com_app)
+        if app_description.find("excel"):
+            self._com_app_type = "excel"
+        else:
+            raise KernelException("TransitionKernel : {} is not handled".format(app_description))
+
+        self._com_app = com_app
+
+    def get_com_app(self):
+        """Get COM App type"""
+        if self._com_app is None:
             raise KernelException("TransitionKernel : application is not defined")
-        return self._application
+        return self._com_app
+
+    com_app = property(get_com_app, set_com_app)
+
+    @property
+    def com_app_type(self):
+        """
+        Get COM app type
+        :return: str. COM App type (Excel, ...)
+        """
+        if self._com_app is None:
+            raise KernelException("TransitionKernel : application description is not defined")
+        return self._com_app_type
 
     def set_addin(self, addin):
         self._addin = addin
@@ -93,83 +125,55 @@ class TransitionKernel():
             raise KernelException("TransitionKernel : addin is not defined")
         return self._addin
 
-    def get_kernel_com_events_listener(self):
+    addin = property(get_addin, set_addin)
+
+    @property
+    def kernel_com_events_listener(self):
         """
+        Return COM Event Listener instance.
         :rtype : KernelComEventListener
         :return:  KernelComEventListener instance
         """
         return self._com_events_listener
 
     def run(self):
+        """
+        Kernel startup.
+        :return: None
+        """
         print('TransitionKernel launched !')
 
         for app_type in TransitionAppType:
             print('TransitionKernel enabled {} : {}'.format(app_type.value, ' '.join(
-                x for x in self._config.app_get_enabled_list(app_type) if x)))
+                x for x in self._config.get_enabled_app_list(app_type) if x)))
 
-        if self._waitExcelVisible is False and self._application.Visible == 0:
-            print("TransitionKernel : Excel wasn't running... Exiting...")
-            self._application.Quit()
-        else:
-            if self._application.EnableEvents is False:
-                print("TransitionKernel : Enabling Events !")
-                self._application.EnableEvents = True
+        if self._com_app.EnableEvents is False:
+            print("TransitionKernel : Enabling Events !")
+            self._com_app.EnableEvents = True
 
-            self._app_manager = AppManager(self._application, self._config)
-            self._app_manager.run()
+        self._app_manager = AppManager(self)
+        self._app_manager.run()
 
     def terminate(self):
+        """
+        Kernel shutdown
+        :return: None
+        """
         print("TransitionKernel is terminating...")
         self._app_manager.terminate()
-        print("TransitionKernel terminated...")
-
-    def launch_wb_app(self, wb) -> ExcelWorkbookAppSkell:
-        """
-        Launches an ExcelApp on the given wb.
-        :param wb:
-        :return: Thread instance if ok. None if no app are found.
-        :rtype: ExcelWorkbookAppSkell
-        """
-        launch = True
-        wb_app = None
-        for t in self._current_app_list:
-            # Checks if app already launched
-            if hasattr(t, "wb") and t.wb.Name == wb.Name:
-                # We don't want to launch it again
-                launch = False
-
-        if launch:
-            wb_app = get_wb_app_instance(wb)
-
-            if wb_app is not None:
-                print("Launching Transition Workbook App {} on {} ...".format(wb_app.name, wb.Name))
-                # wb_app.daemon = True
-                wb_app.run()
-
-        return wb_app
-
-    @staticmethod
-    def app_get_desc(app_type, app_name):
-        """
-        Return the description of the given app
-
-        :param app_name
-        :rtype str
-        :returns module description
-        """
-
-        try:
-            # Dynamic import of the package - to be able to load comments
-            module = inspect.importlib.import_module("{}.{}".format(app_type.value, app_name))
-            # return top comments of the package
-            return inspect.getcomments(module)
-
-        except Exception as e:
-            print("TransitionKernel.app_get_desc({}, {}) : ".format(app_type.value, app_name), repr(e))
-            return -1
+        self._configservice.stop()
+        print("TransitionKernel terminated")
 
     @staticmethod
     def transition_register(klass):
+        """
+        Register add-in class in Excel
+        :param klass:
+        :return: None
+        """
+
+        # TODO make it register COM Add-in for wider range of Office Apps
+
         import win32com.server.register
         import winreg
 
@@ -186,6 +190,14 @@ class TransitionKernel():
 
     @staticmethod
     def transition_unregister(klass):
+        """
+        Unregister add-in class (Excel)
+        :param klass:
+        :return: None
+        """
+
+        # TODO make it unregister COM Add-in for wider range of Office Apps
+
         import win32com.server.register
         import winreg
 
@@ -196,5 +208,3 @@ class TransitionKernel():
                              "Software\\Microsoft\\Office\\Excel\\Addins\\" + klass._reg_progid_)
         except WindowsError:
             pass
-
-

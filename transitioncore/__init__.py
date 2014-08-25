@@ -29,6 +29,9 @@
  - some constants to all others scripts.
 
 """
+
+# TODO transform __init__ in "global import" so "import transitioncore" imports all relevant packages
+
 from enum import Enum
 import pythoncom
 
@@ -39,11 +42,14 @@ defaultNamedNotOptArg = pythoncom.Empty
 defaultMissingArg = pythoncom.Missing
 
 class TransitionAppType(Enum):
-    excel_addin = "exceladdins"  # python package name (used in dynamic imports)
+    """Application types managed by transition
+    This enumeration provides packages names (value part) to help package import.
+    """
+    excel_addin = "exceladdins"
     excel_wbapp = "excelapps"
 
-transition_app_type_tree = {"excel" : {"addin" : TransitionAppType.excel_addin,
-                                       "app" : TransitionAppType.excel_wbapp}}
+transition_app_type_tree = {"excel": {"addin": TransitionAppType.excel_addin,
+                                      "app": TransitionAppType.excel_wbapp}}
 
 transition_app_path = {TransitionAppType.excel_wbapp: excelapps.__path__ ,
                         TransitionAppType.excel_addin: exceladdins.__path__}

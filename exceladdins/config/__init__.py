@@ -46,11 +46,9 @@ sys.executable = os.path.join(sys.exec_prefix, 'pythonw.exe')
 #from PySide import QtGui  # Import PySide classes
 
 from win32com.client import DispatchWithEvents, constants
-import win32event
 
 from exceladdins import addin
 from exceladdins.config import config_box, configmain
-from transitioncore import TransitionAppType
 
 
 class ButtonEvent:
@@ -110,6 +108,7 @@ class ConfigAddin(addin.ExcelAddin):
         pass
 
     def terminate(self):
+        print(self.name, "terminating...")
         #Does dialog still running ?
         if self.btnMyButton.dialog is not None:
             #check if the dialog still running (Poll() return None)

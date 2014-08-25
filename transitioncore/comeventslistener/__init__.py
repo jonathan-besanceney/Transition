@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        Script Name 
-# Purpose:     TODO 
+# Name:        comeventslistener
+# Purpose:     comeventslistener package
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #

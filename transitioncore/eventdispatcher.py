@@ -26,18 +26,36 @@
 
 
 class TransitionEventDispatcher():
+    """
+    Small event dispatcher.
+    Subclass it to manage events in your class.
+    """
+
     def __init__(self, event_interface):
+        # Declare event interface type. Used to control event listener registration.
         self._event_interface = event_interface
+        # List of event listener
         self._event_listener = list()
 
     def add_event_listener(self, listener):
+        """
+        Add (register) an Event Listener class instance
+        :param listener: event_interface subclass
+        :return: None
+        """
         if isinstance(listener, self._event_interface):
             self._event_listener.append(listener)
         else:
+            #TODO raise TypeError exception
             print("TransitionEventDispatcher.add_event_listener : expecting", self._event_interface.__class__.name,
                   "got", listener.__class__.name)
 
     def del_event_listener(self, listener):
+        """
+        Delete (unregister) previously registered Event Listener class instance.
+        :param listener:
+        :return:
+        """
         try:
             self._event_listener.remove(listener)
         except ValueError:

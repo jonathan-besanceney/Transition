@@ -28,9 +28,6 @@
 Define a standard way to replace VBA in Excel Add-in by an
 external COM application launched by Transition Excel/COM Add-in.
 """
-import inspect
-from transitioncore import TransitionAppType
-from transitioncore.configuration import Configuration
 
 class ExcelAddin():
     """Addin Standard Interface
@@ -38,7 +35,6 @@ class ExcelAddin():
     """
 
     def __init__(self, xl_app, name="ExcelAddin"):
-        super(ExcelAddin, self).__init__()
         self.name = name
         print("{} : Init".format(self.name))
         self.xl_app = xl_app
@@ -60,48 +56,48 @@ class ExcelAddin():
         raise NotImplementedError("Subclasses must implement this method !")
 
 
-class ExcelAddinManager():
-    #TODO : remove this class when AppManager is ok
-    def __init__(self, excel_app):
-        self.config = Configuration()
-        self.addin_list = self.config.app_get_enabled_list(TransitionAppType.excel_addin)
-        self.addin_instance_list = list()
-        self.excel_app = excel_app
-
-    def start_addins(self):
-        """
-        Loads and starts all registered addins in the current excel_app
-        """
-        print("ExcelAddinManager.start_addins() : List of addin to launch :", ' '.join(x for x in self.addin_list if x))
-
-        for name in self.addin_list:
-            self.start_addin(name)
-
-    def start_addin(self, name):
-        """Load and start an add-in by name.
-        :param name: sub-package name of exceladdin package
-        """
-        # Import app dynamicaly
-        excel_addin_module = inspect.importlib.import_module("exceladdins.{}".format(name))
-        if hasattr(excel_addin_module, "excel_addin") and issubclass(excel_addin_module.excel_addin, ExcelAddin):
-            addin = excel_addin_module.excel_addin(self.excel_app)
-            addin.run()
-            self.addin_instance_list.append(addin)
-        else:
-            print("ExcelAddinManager.start_addin() :", name, "is not a valid Transition Excel Addin.")
-
-    def terminate_addins(self):
-        """
-        Terminates all launched addins.
-        """
-        i = len(self.addin_instance_list)
-        while i != 0:
-            addin = self.addin_instance_list.pop()
-            addin.terminate()
-            i -= 1
-
-    def terminate_addin(self, name):
-        pass
+# class ExcelAddinManager():
+#     #TODO : remove this class when AppManager is ok
+#     def __init__(self, excel_app):
+#         self.config = Configuration()
+#         self.addin_list = self.config.get_enabled_app_list(TransitionAppType.excel_addin)
+#         self.addin_instance_list = list()
+#         self.excel_app = excel_app
+#
+#     def start_addins(self):
+#         """
+#         Loads and starts all registered addins in the current excel_app
+#         """
+#         print("ExcelAddinManager.start_addins() : List of addin to launch :", ' '.join(x for x in self.addin_list if x))
+#
+#         for name in self.addin_list:
+#             self.start_addin(name)
+#
+#     def start_addin(self, name):
+#         """Load and start an add-in by name.
+#         :param name: sub-package name of exceladdin package
+#         """
+#         # Import app dynamicaly
+#         excel_addin_module = inspect.importlib.import_module("exceladdins.{}".format(name))
+#         if hasattr(excel_addin_module, "excel_addin") and issubclass(excel_addin_module.excel_addin, ExcelAddin):
+#             addin = excel_addin_module.excel_addin(self.excel_app)
+#             addin.run()
+#             self.addin_instance_list.append(addin)
+#         else:
+#             print("ExcelAddinManager.start_addin() :", name, "is not a valid Transition Excel Addin.")
+#
+#     def terminate_addins(self):
+#         """
+#         Terminates all launched addins.
+#         """
+#         i = len(self.addin_instance_list)
+#         while i != 0:
+#             addin = self.addin_instance_list.pop()
+#             addin.terminate()
+#             i -= 1
+#
+#     def terminate_addin(self, name):
+#         pass
 
 if __name__ == '__main__':
     print("This file is a part of ExcelCOM project and is not intended to be run separately.")

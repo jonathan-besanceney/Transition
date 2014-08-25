@@ -1,9 +1,9 @@
 ﻿# ------------------------------------------------------------------------------
 # Name:        transition.py
-# Purpose:     Transition Excel/COM Add-in to register in Microsoft Office App.
+# Purpose:     Transition Office/COM Add-in.
 #              Implements COM Event Interface to start and stop Transition
 #              Kernel.
-#              See transitioncore.transitionkernel for further information.
+#              See transition.py --help for more details.
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com> from
 #               <ekoome@yahoo.com> Eric Koome's /win32com/demo/excelAddin.py
@@ -28,29 +28,25 @@
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
 """
-Transition Excel/COM Add-in launches an excel handler.
-Handler watches for documents open and close in a separate thread in order to
-launch appropriate excelapps to handle the workbooks automation.
-Registered exceladdins are launched at startup.
+Transition Office/COM Add-in aims are to :
+- Bootstrap kernel via TransitionCOMEventsListener when this class is registered as
+  COM Add-in in Office Software (only Excel by now)
+- Provide a command line interface to configuration. transition.py --help for more
+  information.
 """
+
 import sys
-# specify free threading, common way to think threading.
-# sys.coinit_flags = 0
-
 import os
-from transitioncore import TransitionAppType
-
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-
-#import threading
+sys.coinit_flags = 0
 
 from win32com import universal
 from win32com.client import gencache
-# Last import, at least after sys.coinit_flags = 0 to initialize it in
-# free threading.
 import pythoncom
 import win32trace
 
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+
+from transitioncore import TransitionAppType
 from transitioncore.eventdispatcher import TransitionEventDispatcher
 from transitioncore.kernel import TransitionKernel
 from transitioncore.eventsinterface.comeventsinterface import COMEventsInterface
@@ -75,7 +71,7 @@ class TransitionCOMEventsListener(TransitionEventDispatcher):
 
     Bootstrap Transition Kernel.
 
-    This class is registered in the Windows Registry to tell Excel open
+    This class is registered in the Windows Registry to tell Office app to open
     pythoncom.dll at startup to instantiate this class.
 
     """
@@ -93,13 +89,13 @@ class TransitionCOMEventsListener(TransitionEventDispatcher):
         super(TransitionCOMEventsListener, self).__init__(COMEventsInterface)
         self.name = TransitionCOMEventsListener.addin_name
         print(self.addin_name, ": init", self.name)
-        self.excel_app = None
+        self.com_app = None
 
         # Bootstrap kernel
-        self._kernel = TransitionKernel(True)
+        self._kernel = TransitionKernel()
 
-        # reverse-registering kernel com events listener
-        self.add_event_listener(self._kernel.get_kernel_com_events_listener())
+        # reverse-register kernel com events listener
+        self.add_event_listener(self._kernel.kernel_com_events_listener)
 
     def OnConnection(self, application, connect_mode, addin, custom):
         """
@@ -108,7 +104,7 @@ class TransitionCOMEventsListener(TransitionEventDispatcher):
         print(self.addin_name, ": OnConnection", application, connect_mode, addin, custom)
 
         # link application to our add-in
-        self.excel_app = application
+        self.com_app = application
 
         # fire registered events
         self._fire_event("on_connection", (application, connect_mode, addin, custom))
@@ -117,31 +113,31 @@ class TransitionCOMEventsListener(TransitionEventDispatcher):
         """
         Addin shutdown
         """
-        print(self.addin_name, ": OnDisconnection".format(self.name), mode, custom)
+        print(self.addin_name, ": OnDisconnection", mode, custom)
 
         # fire registered events from registered listeners
         self._fire_event("on_disconnection", (mode, custom))
 
-        self.excel_app.Quit()
-        self.excel_app = None
+        self.com_app.Quit()
+        self.com_app = None
         win32trace.TermRead()
 
     def OnAddInsUpdate(self, custom):
-        print(self.addin_name, ": OnAddInsUpdate".format(self.name), custom)
+        print(self.addin_name, ": OnAddInsUpdate", custom)
 
         # fire registered events
         self._fire_event("on_addins_update", custom)
 
     def OnStartupComplete(self, custom):
         # While Excel finish its startup process
-        print(self.addin_name, ": OnStartupComplete".format(self.name), custom)
+        print(self.addin_name, ": OnStartupComplete", custom)
 
         # fire registered events
         self._fire_event("on_startup_complete", custom)
 
     def OnBeginShutdown(self, custom):
         # Excel begins to launch its termination process.
-        print(self.addin_name, ": OnBeginShutdown".format(self.name), custom)
+        print(self.addin_name, ": OnBeginShutdown", custom)
 
         # fire registered events
         self._fire_event("on_begin_shutdown", custom)
@@ -177,38 +173,36 @@ if __name__ == '__main__':
 
         group.add_argument("-al", "--app-list", help="lists available excel apps", action="store_true")
         group.add_argument("-ae", "--app-enable", help="enables available excel app", type=str,
-                           choices=config.app_get_disabled_list(TransitionAppType.excel_wbapp))
+                           choices=config.get_disabled_app_list(TransitionAppType.excel_wbapp))
         group.add_argument("-ad", "--app-disable", help="disables previously enabled excel app", type=str,
-                           choices=config.app_get_enabled_list(TransitionAppType.excel_wbapp))
+                           choices=config.get_enabled_app_list(TransitionAppType.excel_wbapp))
 
         group.add_argument("-dl", "--addin-list", help="lists available excel add-ins", action="store_true")
         group.add_argument("-de", "--addin-enable", help="enables available excel add-ins", type=str,
-                           choices=config.app_get_disabled_list(TransitionAppType.excel_addin))
+                           choices=config.get_disabled_app_list(TransitionAppType.excel_addin))
         group.add_argument("-dd", "--addin-disable", help="disables previously enabled excel add-ins", type=str,
-                           choices=config.app_get_enabled_list(TransitionAppType.excel_addin))
+                           choices=config.get_enabled_app_list(TransitionAppType.excel_addin))
 
         args = parser.parse_args()
 
         if args.list:
             for app_type in TransitionAppType:
-                config.app_print_list(app_type)
+                config.print_app_list(app_type)
         elif args.app_list:
-            config.app_print_list(TransitionAppType.excel_wbapp)
+            config.print_app_list(TransitionAppType.excel_wbapp)
         elif args.addin_list:
-            config.app_print_list(TransitionAppType.excel_addin)
+            config.print_app_list(TransitionAppType.excel_addin)
         elif args.app_enable is not None:
-            config.app_enable(TransitionAppType.excel_wbapp, args.app_enable)
+            config.enable_app(TransitionAppType.excel_wbapp, args.enable_app)
         elif args.app_disable is not None:
-            config.app_disable(TransitionAppType.excel_wbapp,args.app_disable)
+            config.disable_app(TransitionAppType.excel_wbapp, args.disable_app)
         elif args.addin_enable is not None:
-            config.app_enable(TransitionAppType.excel_addin, args.addin_enable)
+            config.enable_app(TransitionAppType.excel_addin, args.addin_enable)
         elif args.addin_disable is not None:
-            config.app_disable(TransitionAppType.excel_addin, args.addin_disable)
+            config.disable_app(TransitionAppType.excel_addin, args.addin_disable)
         elif args.unregister:
             TransitionKernel.transition_unregister(TransitionCOMEventsListener)
         else:
             TransitionKernel.transition_register(TransitionCOMEventsListener)
     except ConfigurationException as ce:
         print("Transition configuration command returned an error :", ce.value)
-    # except Exception as e:
-    #     print("Transition command returned an error :", repr(e))
