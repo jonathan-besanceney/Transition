@@ -46,7 +46,6 @@ import win32trace
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
-from transitioncore import TransitionAppType
 from transitioncore.eventdispatcher import TransitionEventDispatcher
 from transitioncore.kernel import TransitionKernel
 from transitioncore.eventsinterface.comeventsinterface import COMEventsInterface
@@ -154,8 +153,8 @@ if __name__ == '__main__':
             description=
             "Transition Excel Add-in launches an excel handler watching for documents open\n"
             + "and close in a separate thread.\n"
-            + "Handler tries to launch appropriate excelapps to handle the workbooks.\n"
-            + "Registered exceladdins are launched at startup.\n"
+            + "Handler tries to launch appropriate documentapp to handle the workbooks.\n"
+            + "Registered complugin are launched at startup.\n"
             + "Running transition.py without parameters registers add-in.\n"
             + "See optional arguments bellow :")
 
@@ -173,33 +172,33 @@ if __name__ == '__main__':
 
         group.add_argument("-al", "--app-list", help="lists available excel apps", action="store_true")
         group.add_argument("-ae", "--app-enable", help="enables available excel app", type=str,
-                           choices=config.get_disabled_app_list(TransitionAppType.excel_wbapp))
+                           choices=config.get_disabled_app_list('documentapp'))
         group.add_argument("-ad", "--app-disable", help="disables previously enabled excel app", type=str,
-                           choices=config.get_enabled_app_list(TransitionAppType.excel_wbapp))
+                           choices=config.get_enabled_app_list('documentapp'))
 
         group.add_argument("-dl", "--addin-list", help="lists available excel add-ins", action="store_true")
         group.add_argument("-de", "--addin-enable", help="enables available excel add-ins", type=str,
-                           choices=config.get_disabled_app_list(TransitionAppType.excel_addin))
+                           choices=config.get_disabled_app_list('complugin'))
         group.add_argument("-dd", "--addin-disable", help="disables previously enabled excel add-ins", type=str,
-                           choices=config.get_enabled_app_list(TransitionAppType.excel_addin))
+                           choices=config.get_enabled_app_list('complugin'))
 
         args = parser.parse_args()
 
         if args.list:
-            for app_type in TransitionAppType:
+            for app_type in Configuration.com_apps:
                 config.print_app_list(app_type)
         elif args.app_list:
-            config.print_app_list(TransitionAppType.excel_wbapp)
+            config.print_app_list('documentapp')
         elif args.addin_list:
-            config.print_app_list(TransitionAppType.excel_addin)
+            config.print_app_list('complugin')
         elif args.app_enable is not None:
-            config.enable_app(TransitionAppType.excel_wbapp, args.enable_app)
+            config.enable_app('documentapp', args.enable_app)
         elif args.app_disable is not None:
-            config.disable_app(TransitionAppType.excel_wbapp, args.disable_app)
+            config.disable_app('documentapp', args.disable_app)
         elif args.addin_enable is not None:
-            config.enable_app(TransitionAppType.excel_addin, args.addin_enable)
+            config.enable_app('complugin', args.addin_enable)
         elif args.addin_disable is not None:
-            config.disable_app(TransitionAppType.excel_addin, args.addin_disable)
+            config.disable_app('complugin', args.addin_disable)
         elif args.unregister:
             TransitionKernel.transition_unregister(TransitionCOMEventsListener)
         else:

@@ -39,10 +39,9 @@
 import inspect
 
 from win32com.client import DispatchWithEvents
+from transitioncore.configuration import Configuration
 
-from transitioncore import TransitionAppType, transition_app_type_tree, transition_app_path
 from transitioncore.comeventslistener.amappeventlistener import AppManagerExcelEventListener
-
 
 class AppManager():
     """Excel listener thread.
@@ -67,10 +66,10 @@ class AppManager():
             self.com_app_events = self.com_app_event_class[self._kernel.com_app_type]
 
             self.app_list["app"] = self._kernel.config.get_enabled_app_list(
-                transition_app_type_tree[self._kernel.com_app_type]["app"])
+                self._kernel.config.transition_app_type_tree[self._kernel.com_app_type]["app"])
 
             self.app_list["addin"] = self._kernel.config.get_enabled_app_list(
-                transition_app_type_tree[self._kernel.com_app_type]["addin"])
+                self._kernel.config.transition_app_type_tree[self._kernel.com_app_type]["addin"])
 
     def run_app(self, app_type, app_name, document=None):
         """
@@ -80,6 +79,7 @@ class AppManager():
         :param document: opened document (eg workbook) to link with a document app
         """
         #TODO make it works for document apps
+        #TODO generate pycache before launching app. https://docs.python.org/3/library/compileall.html#module-compileall
 
         print("AppManager.run_app({}, {})".format(app_type.value, app_name))
         # Import app module
@@ -134,7 +134,7 @@ class AppManager():
         if self.com_app_events is not None:
             #launch COM App Addins
             for addin in self.app_list["addin"]:
-                self.run_app(transition_app_type_tree[self._kernel.com_app_type]["addin"], addin)
+                self.run_app(self._kernel.config.transition_app_type_tree[self._kernel.com_app_type]["addin"], addin)
 
             #TODO See for already opened documents. Are they handled ?
 
@@ -148,7 +148,7 @@ class AppManager():
     def terminate(self):
         import copy
         print("AppManager : terminating...")
-        app_type = transition_app_type_tree[self._kernel.com_app_type]["addin"]
+        app_type = self._kernel.config.transition_app_type_tree[self._kernel.com_app_type]["addin"]
         if app_type in self.started_app_dict.keys():
             addin_dict = copy.copy(self.started_app_dict[app_type])
             for addin in addin_dict.keys():

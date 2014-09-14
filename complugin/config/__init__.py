@@ -1,5 +1,5 @@
 ﻿# ------------------------------------------------------------------------------
-# Name:        exceladdins.config
+# Name:        complugin.config
 # Purpose:     Global configuration. Displays a button to open the conf window.
 #
 # In a standard installation, this Configuration box can be opened
@@ -8,7 +8,7 @@
 # This file is responsible for Excel integration of the config box.
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
-#
+# Version:     1.0
 # Created:     07/04/2014
 # Copyright:    (c) 2014 Jonathan Besanceney
 #
@@ -47,8 +47,8 @@ sys.executable = os.path.join(sys.exec_prefix, 'pythonw.exe')
 
 from win32com.client import DispatchWithEvents, constants
 
-from exceladdins import addin
-from exceladdins.config import config_box, configmain
+from complugin import addin
+from complugin.config import config_box, configmain
 
 
 class ButtonEvent:
@@ -122,7 +122,8 @@ class ConfigAddin(addin.ExcelAddin):
 
 #declare our add-in. AppManager will search module.app_class attribute to start this
 app_class = ConfigAddin
-
+com_app = ('excel', 'access', 'ms project', 'onenote', 'outlook', 'powerpoint', 'word')
+app_type = 'complugin'
 
 if __name__ == "__main__":
     script_name = "{}{}".format(os.path.abspath(os.path.dirname(__file__)), "\\configmain.py")

@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Name:        kernelconfigeventlistener
-# Purpose:     ConfigEventsInterface implementation for Kernel usage
+# Name:        Script Name 
+# Purpose:     TODO 
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
 #
@@ -23,19 +23,3 @@
 #    along with Transition.  If not, see <http://www.gnu.org/licenses/>.
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
-
-from transitioncore.eventsinterface.configeventinterface import ConfigEventsInterface
-
-
-class KernelConfigurationEventListener(ConfigEventsInterface):
-    def __init__(self, kernel=None):
-        self.kernel = kernel
-        #declare interesting kernel event. on_app_add and on_app_del are not kernel
-        #stuff by now (more configuration GUI oriented)
-        self.event_list = ("on_app_enable", "on_app_disable")
-
-    def on_app_disable(self, app_type, app_name):
-        pass
-
-    def on_app_enable(self, app_type, app_name):
-        pass

@@ -1,6 +1,6 @@
 ﻿# ------------------------------------------------------------------------------
-# Name:         excelapps
-# Purpose:      excelapps package
+# Name:         documentapp
+# Purpose:      documentapp package
 #
 # Provide a standard way to extend workbooks functionalities.
 #
@@ -64,7 +64,7 @@ import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 
-from excelapps.appskell import ExcelWorkbookAppSkell
+from documentapp.appskell import ExcelWorkbookAppSkell
 
 
 def get_desc():
@@ -72,9 +72,9 @@ def get_desc():
 
     try:
         # Dynamic import of the package - to be able to load comments
-        #inspect.importlib.import_module("excelapps")
+        #inspect.importlib.import_module("documentapp")
         # return top comments of the package
-        return inspect.getcomments(sys.modules["excelapps"])
+        return inspect.getcomments(sys.modules["documentapp"])
 
     except Exception as e:
         print(e)
@@ -95,7 +95,7 @@ def get_wb_app_instance(wb):
     handler_list = app_get_enabled_list()
     for name in handler_list:
         # Import app dynamicaly
-        excel_app_module = inspect.importlib.import_module("excelapps.{}".format(name))
+        excel_app_module = inspect.importlib.import_module("documentapp.{}".format(name))
 
         handler = excel_app_module.is_handled_workbook(wb)
         if handler is not None:

@@ -42,11 +42,10 @@ from PySide.QtCore import Slot
 import pywintypes
 import win32trace
 
-import exceladdins
-import excelapps
+import complugin
+import documentapp
 
-from exceladdins.config import config_box
-from transitioncore import TransitionAppType
+from complugin.config import config_box
 from transitioncore.configuration import Configuration
 
 APPLICATIONS = "Applications"
@@ -75,7 +74,7 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
         #self.config = rpyc.connect("localhost", port=22).root
 
         self.config = Configuration()
-        app_list = self.config.get_app_list(TransitionAppType.excel_wbapp)
+        app_list = self.config.get_app_list(self.config.TransitionAppType.excel_wbapp)
 
         for app_name, status in app_list:
             item = PySide.QtGui.QStandardItem(app_name)
@@ -86,7 +85,7 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
         parentItem = root
         parentItem.appendRow(itemAddinRoot)
 
-        addin_list = self.config.get_app_list(TransitionAppType.excel_addin)
+        addin_list = self.config.get_app_list(self.config.TransitionAppType.excel_addin)
         for addin_name, status in addin_list:
             item = PySide.QtGui.QStandardItem(addin_name)
             parentItem = itemAddinRoot
@@ -120,14 +119,14 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
         for item in model:
             if status:
                 if item.parent().data() == APPLICATIONS:
-                    self.config.enable_app(TransitionAppType.excel_wbapp, item.data())
+                    self.config.enable_app(self.config.TransitionAppType.excel_wbapp, item.data())
                 else:
-                    self.config.enable_app(TransitionAppType.excel_addin, item.data())
+                    self.config.enable_app(self.config.TransitionAppType.excel_addin, item.data())
             else:
                 if item.parent().data() == APPLICATIONS:
-                    self.config.disable_app(TransitionAppType.excel_wbapp, item.data())
+                    self.config.disable_app(self.config.TransitionAppType.excel_wbapp, item.data())
                 else:
-                    self.config.disable_app(TransitionAppType.excel_addin, item.data())
+                    self.config.disable_app(self.config.TransitionAppType.excel_addin, item.data())
 
             print("set_status {} : {} {}".format(status, item.parent().data(), item.data()))
             self.set_button_activation_text(status)
@@ -155,21 +154,21 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
             self.ui.buttonActivation.setEnabled(False)
             self.ui.buttonActivation.setText("Statut")
             if QModelIndex.data() == APPLICATIONS:
-                desc = excelapps.get_desc()
+                desc = documentapp.get_desc()
                 self.ui.labelTitle.setText(APPLICATIONS)
             else:
-                desc = exceladdins.get_desc()
+                desc = complugin.get_desc()
                 self.ui.labelTitle.setText(ADDINS)
 
         else:
             self.ui.buttonActivation.setEnabled(True)
             module_name = QModelIndex.data()
             if QModelIndex.parent().data() == APPLICATIONS:
-                desc = self.config.get_app_desc(TransitionAppType.excel_wbapp, module_name)
-                status = self.config.get_app_status(TransitionAppType.excel_addin,module_name)
+                desc = self.config._get_app_desc(self.config.TransitionAppType.excel_wbapp, module_name)
+                status = self.config.get_app_status(self.config.TransitionAppType.excel_addin,module_name)
             else:
-                desc = self.config.get_app_desc(TransitionAppType.excel_addin, module_name)
-                status = self.config.get_app_status(TransitionAppType.excel_addin,module_name)
+                desc = self.config._get_app_desc(self.config.TransitionAppType.excel_addin, module_name)
+                status = self.config.get_app_status(self.config.TransitionAppType.excel_addin,module_name)
 
             # toggle the button to reflect status and ensure status text is updated
             self.ui.buttonActivation.setChecked(status)

@@ -30,7 +30,7 @@ class ConfigEventsInterface():
     def on_app_enable(self, app_type, app_name):
         """
         Fired when an available app is enabled
-        :param app_type: TransitionAppType Enum
+        :param app_type:
         :param app_name:
         """
         pass
@@ -38,21 +38,28 @@ class ConfigEventsInterface():
     def on_app_disable(self, app_type, app_name):
         """
         Fired when an available app is disabled
-        :param app_type: TransitionAppType Enum
+        :param app_type:
         :param app_name:
         """
         pass
 
     def on_app_add(self, app_type, app_name):
         """Fired when an app is added to available app list
-        :param app_type: TransitionAppType Enum
+        :param app_type:
         :param app_name:
         """
         pass
 
-    def on_app_remove(self, app_type, app_name):
+    def on_app_del(self, app_type, app_name):
         """Fired when an app is removed from available app list
-        :param app_type: TransitionAppType Enum
+        :param app_type: 
+        :param app_name:
+        """
+        pass
+
+    def on_app_update(self, app_type, app_name):
+        """Fired when an app is updated
+        :param app_type:
         :param app_name:
         """
         pass

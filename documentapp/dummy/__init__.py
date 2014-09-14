@@ -1,8 +1,10 @@
 ﻿# ------------------------------------------------------------------------------
-# Name:        excelapps.dummy
-# Purpose:     Dummy application for testing.
+# Name:        documentapp.dummy
+# Purpose:     Dummy application for testing. Just print triggered events.
 #
 # Author:      Jonathan Besanceney <jonathan.besanceney@gmail.com>
+#
+# Version:     1.0
 #
 # Created:     28/03/2014
 # Copyright:    (c) 2014 Jonathan Besanceney
@@ -38,13 +40,12 @@ import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 sys.path.append(os.path.abspath(os.path.join(os.path.join(os.path.dirname(__file__), os.pardir), os.pardir)))
 
-from excelapps import appskell
+from documentapp import appskell
 
 
 class DummyApp(appskell.ExcelWorkbookAppSkell):
     """This class is a dummy workbook handler. It's main purpose is to be
-    copied in a new excelapps sub package to make a real app.
-
+    copied in a new documentapp sub package to make a real app.
     """
 
     def __init__(self, wb, evt_handler):
@@ -59,6 +60,10 @@ class DummyApp(appskell.ExcelWorkbookAppSkell):
         """
         return DummyApp(wb, appskell.ExcelWbEventsSkell)
 
+
+app_class = DummyApp
+com_app = ('excel', )
+app_type = 'documentapp'
 
 if __name__ == '__main__':
     from win32com.client import Dispatch

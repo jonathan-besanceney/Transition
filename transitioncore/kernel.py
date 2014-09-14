@@ -32,15 +32,13 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-
+sys.executable = os.path.join(sys.exec_prefix, 'pythonw.exe')
 import rpyc
 
 from transitioncore.eventslistener.kernelcomeventslistener import KernelComEventListener
 from transitioncore.eventslistener.kernelconfigeventlistener import KernelConfigurationEventListener
 from transitioncore.exceptions.kernelexception import KernelException
 from transitioncore.configuration import Configuration
-
-from transitioncore import TransitionAppType
 from transitioncore.appmanager import AppManager
 
 
@@ -60,22 +58,24 @@ class TransitionKernel():
         self._com_app_type = None
         self._addin = None
 
-        self._config = Configuration()
+        #self._config = Configuration()
 
         # TODO : learn more... idea seems clear but I make something wrong.
         # get config like ConfigService is already launched
-        # try:
-        #     self._config = rpyc.connect("localhost", port=22).root
-        # except ConnectionRefusedError:
-        #     # Not launched, must do it
-        #     from subprocess import Popen
-        #     sys.executable = os.path.join(sys.exec_prefix, 'pythonw.exe')
-        #     Popen([sys.executable, PATHTOCONFIGSERVICE"ConfigService.py"])
-        #     self._config = rpyc.connect("localhost", port=22).root
+        try:
+            self._conn = rpyc.connect("localhost", port=22)
+            self._config = self._conn.root
+        except ConnectionRefusedError:
+            # Not launched, must do it
+            from subprocess import Popen
+            config_service_path = "{}{}".format(os.path.abspath(os.path.dirname(__file__)), "\\configservice.py")
+            print("TransitionKernel : launch", config_service_path)
+            Popen([sys.executable, config_service_path])
+            self._config = rpyc.connect("localhost", port=22).root
 
         # register to configuration events. See KernelConfigurationEventListener
         # for further info on events and kernel actions.
-        self._config.add_event_listener(KernelConfigurationEventListener(self))
+        # self._config.add_event_listener(KernelConfigurationEventListener(self))
 
         # KernelComEventsListener instantiation
         self._com_events_listener = KernelComEventListener(self)
@@ -92,9 +92,13 @@ class TransitionKernel():
         """Set COM App and determine its type"""
         # What kind of COM Application it is ?
         app_description = repr(com_app)
-        if app_description.find("excel"):
-            self._com_app_type = "excel"
-        else:
+
+        #looks for known com app
+        for app_type in self._config.com_apps:
+            if app_type.lower() in app_description:
+                self._com_app_type = app_type
+
+        if self._com_app_type is None:
             raise KernelException("TransitionKernel : {} is not handled".format(app_description))
 
         self._com_app = com_app
@@ -161,11 +165,10 @@ class TransitionKernel():
         """
         print("TransitionKernel is terminating...")
         self._app_manager.terminate()
-        self._configservice.stop()
         print("TransitionKernel terminated")
 
     @staticmethod
-    def transition_register(klass):
+    def transition_register(klass, com_app="Excel"):
         """
         Register add-in class in Excel
         :param klass:
@@ -179,7 +182,7 @@ class TransitionKernel():
 
         win32com.server.register.UseCommandLine(klass)
 
-        key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Office\\Excel\\Addins")
+        key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Office\\" + com_app + "\\Addins")
         subkey = winreg.CreateKey(key, klass._reg_progid_)
         winreg.SetValueEx(subkey, "CommandLineSafe", 0, winreg.REG_DWORD, 0)
         winreg.SetValueEx(subkey, "LoadBehavior", 0, winreg.REG_DWORD, 3)
@@ -189,7 +192,7 @@ class TransitionKernel():
                           klass.addin_description)
 
     @staticmethod
-    def transition_unregister(klass):
+    def transition_unregister(klass, com_app="Excel"):
         """
         Unregister add-in class (Excel)
         :param klass:
@@ -205,6 +208,6 @@ class TransitionKernel():
 
         try:
             winreg.DeleteKey(winreg.HKEY_CURRENT_USER,
-                             "Software\\Microsoft\\Office\\Excel\\Addins\\" + klass._reg_progid_)
+                             "Software\\Microsoft\\Office\\" + com_app + "\\Addins\\" + klass._reg_progid_)
         except WindowsError:
             pass

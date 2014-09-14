@@ -24,17 +24,10 @@
 # ------------------------------------------------------------------------------
 # -*- coding: utf8 -*-
 
-import inspect
-
-import pickle
 import os
-from os.path import expanduser
-import pkgutil
 import sys
 
 import rpyc
-
-from transitioncore import TransitionAppType, transition_app_path
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
@@ -59,7 +52,7 @@ class ConfigService(rpyc.Service):
         return self._config.enable_app(app_type, app_name)
 
     def exposed_get_app_desc(self, app_type, app_name):
-        return self._config.get_app_desc(app_type, app_name)
+        return self._config._get_app_desc(app_type, app_name)
 
     def exposed_get_app_status(self, app_type, app_name):
         return self._config.get_app_status(app_type, app_name)
@@ -71,7 +64,6 @@ class ConfigService(rpyc.Service):
         return self._config.get_enabled_app_list(app_type)
 
     def exposed_add_event_listener(self, listener):
-        print(repr(listener))
         self._config.add_event_listener(listener)
 
     def exposed_del_event_listener(self, listener):
