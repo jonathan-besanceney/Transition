@@ -42,10 +42,10 @@ from PySide.QtCore import Slot
 import pywintypes
 import win32trace
 
-import complugin
-import documentapp
+import addin
+import docapp
 
-from complugin.config import config_box
+from addin.config import config_box
 from transitioncore.configuration import Configuration
 
 APPLICATIONS = "Applications"
@@ -154,10 +154,10 @@ class ControlConfigDialog(PySide.QtGui.QDialog):
             self.ui.buttonActivation.setEnabled(False)
             self.ui.buttonActivation.setText("Statut")
             if QModelIndex.data() == APPLICATIONS:
-                desc = documentapp.get_desc()
+                desc = docapp.get_desc()
                 self.ui.labelTitle.setText(APPLICATIONS)
             else:
-                desc = complugin.get_desc()
+                desc = addin.get_desc()
                 self.ui.labelTitle.setText(ADDINS)
 
         else:

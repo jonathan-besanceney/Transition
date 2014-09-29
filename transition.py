@@ -54,6 +54,7 @@ from transitioncore.eventsinterface.comeventsinterface import COMEventsInterface
 # Excel 2010
 excel_application = gencache.EnsureModule('{00020813-0000-0000-C000-000000000046}', 0, 1, 7,
                                           bForDemand=True)
+# TODO : EnsureModule for all office apps 'Access', 'MS Project', 'OneNote', 'Outlook', 'PowerPoint', 'Word'
 
 # Office 2010
 gencache.EnsureModule('{2DF8D04C-5BFA-101B-BDE5-00AA0044DE52}', 0, 2, 5,
@@ -151,10 +152,10 @@ if __name__ == '__main__':
 
         parser = argparse.ArgumentParser(
             description=
-            "Transition Excel Add-in launches an excel handler watching for documents open\n"
-            + "and close in a separate thread.\n"
-            + "Handler tries to launch appropriate documentapp to handle the workbooks.\n"
-            + "Registered complugin are launched at startup.\n"
+            "Transition Office Add-in launches a handler watching for documents open\n"
+            + "and close.\n"
+            + "Handler tries to launch appropriate docapp to handle opened office document.\n"
+            + "Registered addin are launched at startup.\n"
             + "Running transition.py without parameters registers add-in.\n"
             + "See optional arguments bellow :")
 
@@ -168,37 +169,26 @@ if __name__ == '__main__':
         group.add_argument("--unregister", help="unregisters register Transition Excel Add-in in debug mode.",
                            action="store_true")
 
-        group.add_argument("-l", "--list", help="lists available excel apps and add-ins", action="store_true")
-
-        group.add_argument("-al", "--app-list", help="lists available excel apps", action="store_true")
-        group.add_argument("-ae", "--app-enable", help="enables available excel app", type=str,
-                           choices=config.get_disabled_app_list('documentapp'))
-        group.add_argument("-ad", "--app-disable", help="disables previously enabled excel app", type=str,
-                           choices=config.get_enabled_app_list('documentapp'))
-
-        group.add_argument("-dl", "--addin-list", help="lists available excel add-ins", action="store_true")
-        group.add_argument("-de", "--addin-enable", help="enables available excel add-ins", type=str,
-                           choices=config.get_disabled_app_list('complugin'))
-        group.add_argument("-dd", "--addin-disable", help="disables previously enabled excel add-ins", type=str,
-                           choices=config.get_enabled_app_list('complugin'))
-
+        parser.add_argument("list", help="lists available doc-apps and add-ins. Optional arg {}"
+                            .format(Configuration.app_type_list), action="store_true")
+        parser.add_argument("enable", help="enables available doc-apps and add-ins", action="store_true")
+        parser.add_argument("disable", help="disables previously enabled doc-apps and add-ins", action="store_true")
+        parser.add_argument("args", nargs=argparse.REMAINDER, type=str)
         args = parser.parse_args()
 
         if args.list:
-            for app_type in Configuration.com_apps:
-                config.print_app_list(app_type)
-        elif args.app_list:
-            config.print_app_list('documentapp')
-        elif args.addin_list:
-            config.print_app_list('complugin')
-        elif args.app_enable is not None:
-            config.enable_app('documentapp', args.enable_app)
-        elif args.app_disable is not None:
-            config.disable_app('documentapp', args.disable_app)
-        elif args.addin_enable is not None:
-            config.enable_app('complugin', args.addin_enable)
-        elif args.addin_disable is not None:
-            config.disable_app('complugin', args.addin_disable)
+            if len(args.args) == 2:
+                config.print_app_list(args.args[1])
+            elif len(args.args) > 2:
+                print("list command accept one optional application type argument {}. Command line args : {}."
+                      .format(Configuration.app_type_list, args.args))
+            else:
+                for app_type in Configuration.app_type_list:
+                    config.print_app_list(app_type)
+        elif args.enable:
+            config.enable_app('docapp', args.enable_app)
+        elif args.disable:
+            config.disable_app('docapp', args.disable_app)
         elif args.unregister:
             TransitionKernel.transition_unregister(TransitionCOMEventsListener)
         else:

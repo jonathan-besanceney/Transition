@@ -42,22 +42,27 @@ class ConfigEvt(ConfigEventsInterface):
     def on_app_add(self, app_type, app_name):
         self.last_fired_evt = 'on_app_add'
         self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name}
+        print('fired event', self.last_fired_evt, self.last_fired_evt_args)
 
     def on_app_del(self, app_type, app_name):
         self.last_fired_evt = 'on_app_del'
         self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name}
+        print('fired event', self.last_fired_evt, self.last_fired_evt_args)
 
-    def on_app_disable(self, app_type, app_name):
+    def on_app_disable(self, app_type, app_name, com_app_tuple):
         self.last_fired_evt = 'on_app_disable'
-        self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name}
+        self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name, 'com_app_tuple': com_app_tuple}
+        print('fired event', self.last_fired_evt, self.last_fired_evt_args)
 
-    def on_app_enable(self, app_type, app_name):
+    def on_app_enable(self, app_type, app_name, com_app_tuple):
         self.last_fired_evt = 'on_app_enable'
-        self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name}
+        self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name, 'com_app_tuple': com_app_tuple}
+        print('fired event', self.last_fired_evt, self.last_fired_evt_args)
 
     def on_app_update(self, app_type, app_name):
         self.last_fired_evt = 'on_app_update'
         self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name}
+        print('fired event', self.last_fired_evt, self.last_fired_evt_args)
 
 class ConfigurationTest(unittest.TestCase):
 
@@ -84,13 +89,13 @@ class ConfigurationTest(unittest.TestCase):
 
     def test__app_add(self):
         #Can't insert if app exists, so we delete it before
-        self.config._app_del('complugin', 'config')
+        self.config._app_del('addin', 'config')
 
         #cleanup
         self.evt.last_fired_evt = ''
         self.evt.last_fired_evt_args = dict()
 
-        app_id = self.config._app_add('complugin', 'config')
+        app_id = self.config._app_add('addin', 'config')
         self.assertLess(0, app_id)
 
         #check if "work with" records are ok
@@ -101,26 +106,28 @@ class ConfigurationTest(unittest.TestCase):
                             WHERE app_works_with_com_app.id_app = ?
                             """, (app_id, ))
 
-        import complugin.config
+        import addin.config
         com_app_count = 0
         for row in cursor:
             com_app_count += 1
-            self.assertIn(row["short_name"], complugin.config.com_app)
+            self.assertIn(row["short_name"], addin.config.com_app)
 
-        self.assertEqual(len(complugin.config.com_app), com_app_count)
+        self.assertEqual(len(addin.config.com_app), com_app_count)
 
         #event must be fired
         self.assertEqual('on_app_add', self.evt.last_fired_evt)
-        self.assertDictEqual({'app_type': 'complugin', 'app_name': 'config'}, self.evt.last_fired_evt_args)
+        self.assertDictEqual({'app_type': 'addin', 'app_name': 'config'}, self.evt.last_fired_evt_args)
 
         #cleanup
         self.evt.last_fired_evt = ''
         self.evt.last_fired_evt_args = dict()
 
-        app_id = self.config._app_add('complugin', 'config')
+        app_id = self.config._app_add('addin', 'config')
         self.assertEqual( -1, app_id)
         self.assertEqual('', self.evt.last_fired_evt)
         self.assertDictEqual({}, self.evt.last_fired_evt_args)
+
+        #TODO : import fake dirty app
 
     def test__app_del(self):
         #cleanup
@@ -128,21 +135,82 @@ class ConfigurationTest(unittest.TestCase):
         self.evt.last_fired_evt_args = dict()
 
         #must work
-        app_id = self.config._app_del('complugin', 'config')
+        app_id = self.config._app_del('addin', 'config')
         self.assertGreater(app_id, 0)
         #event must be fired
         self.assertEqual('on_app_del', self.evt.last_fired_evt)
-        self.assertDictEqual({'app_type': 'complugin', 'app_name': 'config'}, self.evt.last_fired_evt_args)
+        self.assertDictEqual({'app_type': 'addin', 'app_name': 'config'}, self.evt.last_fired_evt_args)
 
         #cleanup
         self.evt.last_fired_evt = ''
         self.evt.last_fired_evt_args = dict()
 
         #must return an error
-        app_id = self.config._app_del('complugin', 'config')
+        app_id = self.config._app_del('addin', 'config')
         self.assertEqual(-1, app_id)
         self.assertEqual('', self.evt.last_fired_evt)
         self.assertDictEqual({}, self.evt.last_fired_evt_args)
+
+    def test__app_import(self):
+        os.mkdir(self.test_dir)
+
+        #make a fake app with indent problem
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+    pass
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+""")
+
+        self.assertIsNone(self.config._app_import("tests", "test_files"))
+
+        #make a fake app with indent & syntax problem
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+     pass(
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+""")
+
+        self.assertIsNone(self.config._app_import("tests", "test_files"))
+
+        #make a fake app with indent & syntax problem
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+     pass(
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+""")
+
+        self.assertIsNone(self.config._app_import("tests", "test_files"))
+
+        #make a fake app with indent & syntax problem
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        pass
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+
+print("Hello World")
+""")
+
+        self.assertIsNotNone(self.config._app_import("tests", "test_files"))
 
     def test__app_update(self):
         """
@@ -155,9 +223,9 @@ class ConfigurationTest(unittest.TestCase):
             WHIRLPOOL VARCHAR(128)
         """
 
-        import complugin.config
+        import addin.config
         #reset all updatable fields
-        app_id = self.config._get_app_id('complugin', 'config')
+        app_id = self.config._get_app_id('addin', 'config')
         cursor = self.config._sqlite_cnx.cursor()
         cursor.execute("""UPDATE app
                         SET author='', version='', description='', SHA256='', SHA512='', WHIRLPOOL=''
@@ -171,13 +239,13 @@ class ConfigurationTest(unittest.TestCase):
         self.evt.last_fired_evt_args = dict()
 
         #get expected values
-        description = self.config._get_app_desc('complugin', 'config')
+        description = self.config._get_app_desc('addin', 'config')
         author, version = self.config._get_app_info_from_desc(description)
-        digests = self.config._generate_app_digests(complugin.config.__path__[0])
-        works_with = complugin.config.com_app
+        digests = self.config._generate_app_digests(addin.config.__path__[0])
+        works_with = addin.config.com_app
 
         #update config
-        ret_val = self.config._app_update('complugin', 'config', digests)
+        ret_val = self.config._app_update('addin', 'config', digests)
 
         #check ret_val
         self.assertEqual(app_id, ret_val)
@@ -209,7 +277,7 @@ class ConfigurationTest(unittest.TestCase):
 
         #check event fired
         self.assertEqual('on_app_update', self.evt.last_fired_evt)
-        self.assertDictEqual({'app_type': 'complugin', 'app_name': 'config'}, self.evt.last_fired_evt_args)
+        self.assertDictEqual({'app_type': 'addin', 'app_name': 'config'}, self.evt.last_fired_evt_args)
 
         self.evt.last_fired_evt = ''
         self.evt.last_fired_evt_args = dict()
@@ -221,6 +289,8 @@ class ConfigurationTest(unittest.TestCase):
         #check event fired
         self.assertEqual('', self.evt.last_fired_evt)
         self.assertDictEqual({}, self.evt.last_fired_evt_args)
+
+        #TODO : import fake dirty app
 
     def test__create_tables(self):
         ##Test setup
@@ -268,14 +338,14 @@ class ConfigurationTest(unittest.TestCase):
         app_type_count = 0
         for app_type in cursor:
             app_type_count += 1
-            self.assertIn(app_type['name'], self.config.app_types)
+            self.assertIn(app_type['name'], self.config.app_type_list)
 
         #same number as defined in config
-        self.assertEqual(len(self.config.app_types), app_type_count)
+        self.assertEqual(len(self.config.app_type_list), app_type_count)
 
         #look for com_apps, in lower case
         com_apps = list()
-        for com_app in self.config.com_apps:
+        for com_app in self.config.com_app_list:
             com_apps.append(com_app.lower())
 
         cursor = sqlite_cnx.cursor().execute("SELECT short_name FROM com_app")
@@ -285,14 +355,14 @@ class ConfigurationTest(unittest.TestCase):
             self.assertIn(com_app['short_name'], com_apps)
 
         #same number as defined in config
-        self.assertEqual(len(self.config.com_apps), com_app_count)
+        self.assertEqual(len(self.config.com_app_list), com_app_count)
 
         #control that no events was fired during db creation
         self.assertEqual('', self.evt.last_fired_evt)
         self.assertDictEqual({}, self.evt.last_fired_evt_args)
 
     def test__get_app_id(self):
-        app_id = self.config._get_app_id('complugin', 'config')
+        app_id = self.config._get_app_id('addin', 'config')
         cursor = self.config._sqlite_cnx.cursor()
         cursor.execute("SELECT rowid FROM app WHERE name = ?", ('config', ))
         expected_app_id = cursor.fetchone()['rowid']
@@ -304,9 +374,9 @@ class ConfigurationTest(unittest.TestCase):
 
     def test__get_app_desc(self):
         import inspect
-        import complugin.config
-        expected_desc = inspect.getcomments(complugin.config)
-        description = self.config._get_app_desc('complugin', 'config')
+        import addin.config
+        expected_desc = inspect.getcomments(addin.config)
+        description = self.config._get_app_desc('addin', 'config')
         self.assertEqual(expected_desc, description)
 
         #check event fired
@@ -314,7 +384,7 @@ class ConfigurationTest(unittest.TestCase):
         self.assertDictEqual({}, self.evt.last_fired_evt_args)
 
         description = self.config._get_app_desc('com', 'config')
-        self.assertEqual(-1, description)
+        self.assertEqual("", description)
 
     def test__get_app_info_from_desc(self):
         description = """
@@ -353,7 +423,6 @@ class ConfigurationTest(unittest.TestCase):
         expected_digests = self.config._generate_app_digests(self.test_dir)
         self.assertIsNotNone(expected_digests)
 
-
         #now we modify previous file. Digests must differ.
         with open(self.test_dir + '\\__init__.py', 'w') as f:
             f.write("print('Hello world!')")
@@ -361,6 +430,13 @@ class ConfigurationTest(unittest.TestCase):
         digests = self.config._generate_app_digests(self.test_dir)
         for key in digests.keys():
             self.assertNotEqual(expected_digests[key], digests[key])
+
+        #check with another app
+        config_path = self.config.get_app_info('addin', 'config')['path']
+        expected_digests = self.config._generate_app_digests(config_path)
+        digests = self.config._generate_app_digests(config_path)
+        for key in digests.keys():
+            self.assertEqual(expected_digests[key], digests[key])
 
     def test__get_sqlite(self):
         import sqlite3
@@ -488,23 +564,23 @@ class ConfigurationTest(unittest.TestCase):
 
         #valid Config dir, known app, digests differs
         cursor = self.config._sqlite.cursor()
-        cursor.execute("UPDATE app SET SHA256='' WHERE rowid=?", (self.config._get_app_id('complugin', 'config'), ))
+        cursor.execute("UPDATE app SET SHA256='' WHERE rowid=?", (self.config._get_app_id('addin', 'config'), ))
         self.config._sqlite_cnx.commit()
 
-        import complugin.config
-        status, digests = self.config._verify_db_digests(complugin.config.__path__[0])
+        import addin.config
+        status, digests = self.config._verify_db_digests(addin.config.__path__[0])
         self.assertFalse(status)
         self.assertIsInstance(digests, dict)
 
         #valid Config dir, known app, digests ok
         #ensure devmode by removing Manifest file if exist
-        if os.path.exists(complugin.config.__path__[0] + '\\Manifest'):
-            os.remove(complugin.config.__path__[0] + '\\Manifest')
+        if os.path.exists(addin.config.__path__[0] + '\\Manifest'):
+            os.remove(addin.config.__path__[0] + '\\Manifest')
 
         #update app to have a new manifest stored in db
-        self.config._app_update('complugin', 'config', digests)
+        self.config._app_update('addin', 'config', digests)
 
-        status, digests = self.config._verify_db_digests(complugin.config.__path__[0])
+        status, digests = self.config._verify_db_digests(addin.config.__path__[0])
         self.assertTrue(status)
         self.assertIsInstance(digests, dict)
         for key in ('SHA256', 'SHA512', 'WHIRLPOOL'):
@@ -514,7 +590,7 @@ class ConfigurationTest(unittest.TestCase):
             else:
                 self.assertEqual(128, len(digests[key]))
 
-        expected_digests = self.config._generate_app_digests(complugin.config.__path__[0])
+        expected_digests = self.config._generate_app_digests(addin.config.__path__[0])
         self.assertDictEqual(expected_digests, digests)
 
     def test__verify_manifest_digests(self):
@@ -576,17 +652,134 @@ class ConfigurationTest(unittest.TestCase):
         status, digests = self.config._verify_manifest_digests(self.test_dir)
         self.assertFalse(status)
 
-    def test_todo_disable_app(self):
-        self.assertTrue(False)
+    def test_disable_app(self):
+        #prepare test
 
-    def test_todo_enable_app(self):
-        self.assertTrue(False)
+        #enable config for all com_app
+        self.assertTrue(self.config.enable_app('addin', 'config'))
+        #evt cleanup
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+
+        self.assertTrue(self.config.disable_app('addin', 'config'))
+        #event on_enable_app must be trigered
+        import addin.config
+        self.assertEqual('on_app_disable', self.evt.last_fired_evt)
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        self.assertListEqual(list(addin.config.com_app), list(self.evt.last_fired_evt_args['com_app_tuple']))
+
+        #look for all com_app status
+        for item in self.config.get_app_list(app_type='addin', app_name='config'):
+            self.assertFalse(item['enabled'])
+
+        #prepare enabling config for excel only
+        self.assertTrue(self.config.enable_app('addin', 'config'))
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+
+        #enable for excel
+        self.assertTrue(self.config.disable_app('addin', 'config', 'excel'))
+        #event on_enable_app must be trigered
+        self.assertEqual('on_app_disable', self.evt.last_fired_evt)
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        self.assertListEqual(['excel', ], list(self.evt.last_fired_evt_args['com_app_tuple']))
+
+        #look for all com_app status
+        for item in self.config.get_app_list(app_type='addin', app_name='config'):
+            if item['com_app'] == 'excel':
+                self.assertFalse(item['enabled'])
+            else:
+                self.assertTrue(item['enabled'])
+
+        #try disabling config for Excel again => must return false and no event
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+        self.assertFalse(self.config.disable_app('addin', 'config', 'excel'))
+        self.assertEqual('', self.evt.last_fired_evt)
+        self.assertDictEqual(dict(), self.evt.last_fired_evt_args)
+
+        #try to disable config for all com_app. must return true, event com_app_tuple arg must not contain excel
+        self.assertTrue(self.config.disable_app('addin', 'config'))
+        self.assertEqual('on_app_disable', self.evt.last_fired_evt)
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        expected_com_app_list = list(addin.config.com_app)
+        expected_com_app_list.remove('excel')
+        self.assertListEqual(expected_com_app_list, list(self.evt.last_fired_evt_args['com_app_tuple']))
+
+        #try with a wrong app and app_type, must raise ConfigurationException
+        from transitioncore.exceptions.configurationexception import ConfigurationException
+        self.assertRaises(ConfigurationException, self.config.disable_app, 'addin', 'onfig')
+        self.assertRaises(ConfigurationException, self.config.disable_app, 'contraption', 'config')
+
+    def test_enable_app(self):
+        #evt cleanup
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+
+        #test enable config for all com_app
+        self.assertTrue(self.config.enable_app('addin', 'config'))
+
+        #event on_enable_app must be trigered
+        import addin.config
+        self.assertEqual('on_app_enable', self.evt.last_fired_evt)
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        self.assertListEqual(list(addin.config.com_app), list(self.evt.last_fired_evt_args['com_app_tuple']))
+
+        #look for all com_app status
+        for item in self.config.get_app_list(app_type='addin', app_name='config'):
+            self.assertTrue(item['enabled'])
+
+        #prepare enabling config for excel only
+        self.assertTrue(self.config.disable_app('addin', 'config'))
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+
+        #enable for excel
+        self.assertTrue(self.config.enable_app('addin', 'config', 'excel'))
+        #event on_enable_app must be trigered
+        self.assertEqual('on_app_enable', self.evt.last_fired_evt)
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        self.assertListEqual(['excel', ], list(self.evt.last_fired_evt_args['com_app_tuple']))
+
+        #look for all com_app status
+        for item in self.config.get_app_list(app_type='addin', app_name='config'):
+            if item['com_app'] == 'excel':
+                self.assertTrue(item['enabled'])
+            else:
+                self.assertFalse(item['enabled'])
+
+        #try enable config for Excel again => must return false and no event
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+        self.assertFalse(self.config.enable_app('addin', 'config', 'excel'))
+        self.assertEqual('', self.evt.last_fired_evt)
+        self.assertDictEqual(dict(), self.evt.last_fired_evt_args)
+
+        #try to enable config for all com_app. must return true, event com_app_tuple arg must not contain excel
+        self.assertTrue(self.config.enable_app('addin', 'config'))
+        self.assertEqual('on_app_enable', self.evt.last_fired_evt)
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        expected_com_app_list = list(addin.config.com_app)
+        expected_com_app_list.remove('excel')
+        self.assertListEqual(expected_com_app_list, list(self.evt.last_fired_evt_args['com_app_tuple']))
+
+        #try with a wrong app and app_type, must raise ConfigurationException
+        from transitioncore.exceptions.configurationexception import ConfigurationException
+        self.assertRaises(ConfigurationException, self.config.enable_app, 'addin', 'onfig')
+        self.assertRaises(ConfigurationException, self.config.enable_app, 'contraption', 'config')
+
 
     def test_get_app_info(self):
-        import complugin.config
-        app_info1 = self.config.get_app_info('complugin', 'config')
+        import addin.config
+        app_info1 = self.config.get_app_info('addin', 'config')
         self.assertIsNotNone(app_info1)
-        app_info2 = self.config.get_app_info_by_path(complugin.config.__path__[0])
+        app_info2 = self.config.get_app_info_by_path(addin.config.__path__[0])
         self.assertIsNotNone(app_info2)
 
         for field in app_info1.keys():
@@ -597,37 +790,315 @@ class ConfigurationTest(unittest.TestCase):
         self.assertIsNone(self.config.get_app_info_by_path(self.test_dir))
 
         #with known path
-        import complugin.config
+        import addin.config
         import sqlite3
-        app_infos = self.config.get_app_info_by_path(complugin.config.__path__[0])
+        app_infos = self.config.get_app_info_by_path(addin.config.__path__[0])
         self.assertIsInstance(app_infos, sqlite3.Row)
 
-    def test_todo_get_app_list(self):
-        self.assertTrue(False)
+    def test_get_app_list(self):
+        #make fake app, registered with excel only
+        from transitioncore.configsql import SQL_INSERT_APP_TYPE
+        import tests
+        #make a fake app
+        os.mkdir(self.test_dir)
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        pass
 
-    def test_todo_get_app_mode(self):
-        self.assertTrue(False)
+app_class = FakeApp
+com_app = ('excel', )
+app_type = 'tests'
+""")
 
-    def test_todo_get_app_state(self):
-        self.assertTrue(False)
+        #insert "tests" app_type
+        sqlitecnx = self.config._sqlite
+        cursor = sqlitecnx.cursor()
+        cursor.execute(SQL_INSERT_APP_TYPE, ("tests", tests.__path__[0]))
+        sqlitecnx.commit()
+        #insert our test_files fake app
+        self.config._app_add("tests", "test_files")
 
-    def test_todo_get_app_status(self):
-        self.assertTrue(False)
+        #test app must be included in app_list associated with excel
+        app_list = self.config.get_app_list(app_name='test_files')
+        self.assertEqual(1, len(app_list))
+        for item in app_list:
+            self.assertEqual('test_files', item['app_name'])
+            self.assertEqual('tests', item['app_type'])
+            self.assertEqual('excel', item['com_app'])
+            self.assertEqual(0, item['enabled'])
 
-    def test_todo_get_app_type_path(self):
-        self.assertTrue(False)
+        app_list = self.config.get_app_list(app_type='tests')
+        self.assertEqual(1, len(app_list))
+        for item in app_list:
+            self.assertEqual('test_files', item['app_name'])
+            self.assertEqual('tests', item['app_type'])
+            self.assertEqual('excel', item['com_app'])
+            self.assertEqual(0, item['enabled'])
 
-    def test_todo_get_available_app_list(self):
-        self.assertTrue(False)
+        app_list = self.config.get_app_list(app_type='tests', app_name='test_files')
+        self.assertEqual(1, len(app_list))
+        for item in app_list:
+            self.assertEqual('test_files', item['app_name'])
+            self.assertEqual('tests', item['app_type'])
+            self.assertEqual('excel', item['com_app'])
+            self.assertEqual(0, item['enabled'])
 
-    def test_todo_get_disabled_app_list(self):
-        self.assertTrue(False)
+        app_list = self.config.get_app_list(app_type='tests', app_name='test_files', com_app='excel')
+        self.assertEqual(1, len(app_list))
+        for item in app_list:
+            self.assertEqual('test_files', item['app_name'])
+            self.assertEqual('tests', item['app_type'])
+            self.assertEqual('excel', item['com_app'])
+            self.assertEqual(0, item['enabled'])
 
-    def test_todo_get_enabled_app_list(self):
-        self.assertTrue(False)
+        app_list = self.config.get_app_list(app_type='tests', app_name='test_files', com_app='excel', enabled=False)
+        self.assertEqual(1, len(app_list))
+        for item in app_list:
+            self.assertEqual('test_files', item['app_name'])
+            self.assertEqual('tests', item['app_type'])
+            self.assertEqual('excel', item['com_app'])
+            self.assertEqual(0, item['enabled'])
 
-    def test_todo_print_app_list(self):
-        self.assertTrue(False)
+        app_list = self.config.get_app_list(com_app='excel')
+        #look for our fake app in this list
+        found_items = 0
+        for item in app_list:
+            if item['app_name'] == 'test_files':
+                found_items += 1
+
+        self.assertEqual(1, found_items)
+
+        app_list = self.config.get_app_list(enabled=False)
+        #look for our fake app in this list
+        found_items = 0
+        for item in app_list:
+            if item['app_name'] == 'test_files':
+                found_items += 1
+
+        self.assertEqual(1, found_items)
+
+        app_list = self.config.get_app_list(app_name="config")
+        #look for registered com_app for config
+        import addin.config
+        self.assertEqual(len(addin.config.com_app), len(app_list))
+        for item in app_list:
+            self.assertTrue(item['com_app'] in addin.config.com_app)
+            self.assertEqual("config", item['app_name'])
+
+    def test_get_app_mode(self):
+        self.assertIsNone(self.config.get_app_mode("tests", "test_files"))
+
+        from transitioncore.configsql import SQL_INSERT_APP_TYPE
+        import tests
+        #make a fake app
+        os.mkdir(self.test_dir)
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        pass
+
+app_class = FakeApp
+com_app = ('excel', )
+app_type = 'tests'
+""")
+
+        #insert "tests" app_type
+        sqlitecnx = self.config._sqlite
+        cursor = sqlitecnx.cursor()
+        cursor.execute(SQL_INSERT_APP_TYPE, ("tests", tests.__path__[0]))
+        sqlitecnx.commit()
+        #insert our test_files fake app
+        self.config._app_add("tests", "test_files")
+
+        #Without Manifest, fake app is in devmode
+        self.assertEqual('devmode', self.config.get_app_mode("tests", "test_files"))
+
+        #With Manifest, app is in usermode
+        self.config.write_app_manifest(self.config.get_app_info("tests", "test_files")['path'])
+        self.assertEqual('usermode', self.config.get_app_mode("tests", "test_files"))
+
+    def test_get_app_state(self):
+        #app doesn't exist
+        self.assertIsNone(self.config.get_app_state("tests", "test_files"))
+
+        from transitioncore.configsql import SQL_INSERT_APP_TYPE
+        import tests
+        #make a fake app
+        os.mkdir(self.test_dir)
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        pass
+
+app_class = FakeApp
+com_app = ('excel', )
+app_type = 'tests'
+""")
+
+        #insert "tests" app_type
+        sqlitecnx = self.config._sqlite
+        cursor = sqlitecnx.cursor()
+        cursor.execute(SQL_INSERT_APP_TYPE, ("tests", tests.__path__[0]))
+        sqlitecnx.commit()
+        #insert our test_files fake app
+        self.config._app_add("tests", "test_files")
+
+        #state must be 0 (unchanged)
+        self.assertEqual(0, self.config.get_app_state("tests", "test_files"))
+
+        #we change it in dev mode
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        print('hello world !')
+
+app_class = FakeApp
+com_app = ('excel', )
+app_type = 'tests'
+""")
+
+        #state must be 1 (updated)
+        self.assertEqual(1, self.config.get_app_state("tests", "test_files"))
+
+        self.config._app_update("tests", "test_files", self.config._generate_app_digests(self.test_dir))
+        self.assertEqual(0, self.config.get_app_state("tests", "test_files"))
+
+        #In usermode now
+        self.config.write_app_manifest(self.test_dir)
+        #nothing change
+        self.assertEqual(0, self.config.get_app_state("tests", "test_files"))
+
+        #we change app.
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        print('hello world !')
+        print('bonjour tout le monde !')
+
+app_class = FakeApp
+com_app = ('excel', )
+app_type = 'tests'
+""")
+        #must return -1 (corrupted)
+        self.assertEqual(-1, self.config.get_app_state("tests", "test_files"))
+
+        #generate Manifest
+        self.config.write_app_manifest(self.test_dir)
+
+        #must return 1 (updated)
+        self.assertEqual(1, self.config.get_app_state("tests", "test_files"))
+
+        #update app
+        self.config._app_update("tests", "test_files", self.config._generate_app_digests(self.test_dir))
+        self.assertEqual(0, self.config.get_app_state("tests", "test_files"))
+
+
+    def test_get_app_type_path(self):
+        #test with unexisting app_type. Must return None
+
+        self.assertIsNone(self.config.get_app_type_path("tests"))
+
+        #create app_type
+        import tests
+        from transitioncore.configsql import SQL_INSERT_APP_TYPE
+        os.mkdir(self.test_dir)
+        #insert "tests" app_type
+        sqlitecnx = self.config._sqlite
+        cursor = sqlitecnx.cursor()
+        cursor.execute(SQL_INSERT_APP_TYPE, ("tests", tests.__path__[0]))
+        sqlitecnx.commit()
+
+        self.assertEqual(tests.__path__[0], self.config.get_app_type_path("tests"))
+
+        import addin
+        self.assertEqual(addin.__path__[0], self.config.get_app_type_path("addin"))
+        import docapp
+        self.assertEqual(docapp.__path__[0], self.config.get_app_type_path("docapp"))
+
+    def test_get_available_app_list(self):
+        from transitioncore.configsql import SQL_INSERT_APP_TYPE
+        import tests
+        from transitioncore.exceptions.configurationexception import ConfigurationException
+        #wrong type for com_app arg. Raises ConfigurationException
+        self.assertRaises(ConfigurationException, self.config.get_available_app_list, "addin", "excel")
+
+        #make a fake app
+        os.mkdir(self.test_dir)
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        pass
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+""")
+
+        #insert "tests" app_type
+        sqlitecnx = self.config._sqlite
+        cursor = sqlitecnx.cursor()
+        cursor.execute(SQL_INSERT_APP_TYPE, ("tests", tests.__path__[0]))
+        sqlitecnx.commit()
+        #insert our test_files fake app
+        self.config._app_add("tests", "test_files")
+
+        #now we can check if get_available_app_list result is valid
+        app_list = self.config.get_available_app_list("tests")
+
+        self.assertTrue("test_files" in app_list)
+        self.assertTrue("config" not in app_list)
+
+        app_list = self.config.get_available_app_list("tests", ('excel', ))
+        self.assertTrue("test_files" in app_list)
+        self.assertTrue("config" not in app_list)
+
+        from addin.config import com_app
+        app_list = self.config.get_available_app_list("addin", com_app)
+        self.assertTrue("test_files" not in app_list)
+        self.assertTrue("config" in app_list)
+
+    def test_get_com_app_list(self):
+        expectedList = list()
+        for com_app in self.config.com_app_list:
+            expectedList.append(com_app.lower())
+        self.assertListEqual(expectedList, self.config.get_com_app_list())
+
+    def test_get_disabled_app_list(self):
+        #app_type tests doesn't exist, must return None
+        self.assertIsNone(self.config.get_disabled_app_list("tests", "excel"))
+
+        #all apps are disabled (new config)
+        #check if we find "config" disabled for excel
+        self.assertTrue('config' in self.config.get_disabled_app_list('addin', 'excel'))
+
+        #enable config for excel, config must not be in disabled list
+        self.config.enable_app('addin', 'config', 'excel')
+        self.assertFalse('config' in self.config.get_disabled_app_list('addin', 'excel'))
+
+    def test_get_enabled_app_list(self):
+        #app_type tests doesn't exist, must return None
+        self.assertIsNone(self.config.get_enabled_app_list("tests", "excel"))
+
+        #all apps are disabled (new config)
+        #config must not be in disabled list
+        self.assertFalse('config' in self.config.get_enabled_app_list('addin', 'excel'))
+
+        #check if we find "config" enabled for excel
+        self.config.enable_app('addin', 'config', 'excel')
+        self.assertTrue('config' in self.config.get_enabled_app_list('addin', 'excel'))
+
+    def test_print_app_list(self):
+        self.config.print_app_list('test')
+        self.config.print_app_list('addin')
+        self.config.print_app_list('docapp')
+        self.assertTrue(True)
 
     def test_reset(self):
         #reset is already called in setUp
@@ -635,8 +1106,92 @@ class ConfigurationTest(unittest.TestCase):
         import os
         self.assertFalse(os.path.exists(os.getenv("USERPROFILE") + "\\.transition.s3db"))
 
-    def test_todo_update_inventory(self):
-        self.assertTrue(False)
+    def test_update_inventory(self):
+        import shutil
+        self.evt.last_fired_evt = ''
+        self.evt.last_fired_evt_args = dict()
+
+        #remove Manifest file in config app directory
+        if os.path.exists(self.config.get_app_info('addin', 'config')['path'] + "\\Manifest"):
+            os.remove(self.config.get_app_info('addin', 'config')['path'] + "\\Manifest")
+
+        #populate database. must not fire events
+        self.config.update_inventory(fire_event=False)
+        self.assertEqual('', self.evt.last_fired_evt)
+        self.assertEqual(0, len(self.evt.last_fired_evt_args))
+
+        #all apps must have "unchanged" status
+        for item in self.config.get_app_list():
+            print('test state of', item['app_type'], item['app_name'])
+            self.assertEqual(0, self.config.get_app_state(item['app_type'], item['app_name']))
+
+        #make a fake app
+        from transitioncore.configsql import SQL_INSERT_APP_TYPE
+        import tests
+        os.mkdir(self.test_dir)
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        pass
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+""")
+
+        #insert "tests" app_type
+        sqlitecnx = self.config._sqlite
+        cursor = sqlitecnx.cursor()
+        cursor.execute(SQL_INSERT_APP_TYPE, ("tests", tests.__path__[0]))
+        sqlitecnx.commit()
+
+        #Now an update must fire on_app_add
+        self.config.update_inventory(app_type='tests')
+        self.assertEqual('on_app_add', self.evt.last_fired_evt)
+        self.assertEqual('tests', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('test_files', self.evt.last_fired_evt_args['app_name'])
+
+        #modify app, update must fire on_app_update
+        with open(self.test_dir + "\\__init__.py", "w") as f:
+            f.write("""
+class FakeApp():
+    def run():
+        print("hello world !")
+
+app_class = FakeApp
+com_app = ('excel', 'unknown com app')
+app_type = 'tests'
+""")
+        self.config.update_inventory(app_type='tests')
+        self.assertEqual('on_app_update', self.evt.last_fired_evt)
+        self.assertEqual('tests', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('test_files', self.evt.last_fired_evt_args['app_name'])
+
+        #enable config for excel
+        self.config.enable_app('addin', 'config', 'excel')
+
+        #sign fake app, and copy Manifest file into config dir to corrupt it
+        self.config.write_app_manifest(self.test_dir)
+
+        shutil.move(self.test_dir + "\\Manifest", self.config.get_app_info('addin', 'config')['path'])
+
+        #an update must disable corrupted config app and fire on_app_disable
+        self.assertEqual(-1, self.config.get_app_state('addin', 'config'))
+        self.config.update_inventory('addin')
+
+        self.assertEqual('addin', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('config', self.evt.last_fired_evt_args['app_name'])
+        self.assertEqual('on_app_disable', self.evt.last_fired_evt)
+        self.assertEqual(list(('excel', )), list(self.evt.last_fired_evt_args['com_app_tuple']))
+        os.remove(self.config.get_app_info('addin', 'config')['path'] + "\\Manifest")
+
+        #remove fake app, update must fire on_app_del
+        shutil.rmtree(self.test_dir)
+        self.config.update_inventory(app_type='tests')
+        self.assertEqual('on_app_del', self.evt.last_fired_evt)
+        self.assertEqual('tests', self.evt.last_fired_evt_args['app_type'])
+        self.assertEqual('test_files', self.evt.last_fired_evt_args['app_name'])
 
     def test_write_app_manifest(self):
         # from transitioncore.exceptions.configurationexception import ConfigurationException
@@ -652,9 +1207,10 @@ class ConfigurationTest(unittest.TestCase):
         with open(self.test_dir + '\\__init__.py', 'w') as f:
             f.write("print('Hello world!')")
 
-        self.assertIsInstance(self.config.write_app_manifest(self.test_dir), dict)
+        expected_digests = self.config.write_app_manifest(self.test_dir)
+        self.assertIsInstance(expected_digests, dict)
 
-        #TODO : find a way to raise ConfigurationException (IOError)
+        self.assertDictEqual(expected_digests, self.config._generate_app_digests(self.test_dir))
 
 if __name__ == '__main__':
     unittest.main()

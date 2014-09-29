@@ -6,6 +6,6 @@ __pycache__
 /innosetup/python_packages/wheelhouse/*.whl
 /innosetup/python_packages/pywin32-219.win32-py3.4.exe
 /sonar-project.properties
-/complugin/winlassieodbc
+/addin/winlassieodbc
 .idea
 /innosetup/python_packages

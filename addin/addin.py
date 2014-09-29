@@ -78,7 +78,7 @@ class ExcelAddin():
 #         :param name: sub-package name of exceladdin package
 #         """
 #         # Import app dynamicaly
-#         excel_addin_module = inspect.importlib.import_module("complugin.{}".format(name))
+#         excel_addin_module = inspect.importlib.import_module("addin.{}".format(name))
 #         if hasattr(excel_addin_module, "excel_addin") and issubclass(excel_addin_module.excel_addin, ExcelAddin):
 #             addin = excel_addin_module.excel_addin(self.excel_app)
 #             addin.run()

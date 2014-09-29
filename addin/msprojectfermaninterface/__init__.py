@@ -91,7 +91,7 @@ class MSProjectFermanInterface():
 #declare our add-in. AppManager will search module.app_class attribute to start this
 app_class = MSProjectFermanInterface
 com_app = ('ms project', )
-app_type = 'complugin'
+app_type = 'addin'
 
 if __name__ == "__main__":
     msp = MSProjectFermanInterface()

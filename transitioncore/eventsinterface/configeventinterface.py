@@ -27,19 +27,21 @@
 
 
 class ConfigEventsInterface():
-    def on_app_enable(self, app_type, app_name):
+    def on_app_enable(self, app_type, app_name, com_app_tuple):
         """
         Fired when an available app is enabled
         :param app_type:
         :param app_name:
+        :param com_app_tuple: related com_apps
         """
         pass
 
-    def on_app_disable(self, app_type, app_name):
+    def on_app_disable(self, app_type, app_name, com_app_tuple):
         """
         Fired when an available app is disabled
         :param app_type:
         :param app_name:
+        :param com_app_tuple: related com_apps
         """
         pass
 

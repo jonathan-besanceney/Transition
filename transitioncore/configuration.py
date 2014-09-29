@@ -14,7 +14,7 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-#    Transition is distributed in the hope that it will be useful,
+# Transition is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU Lesser General Public License for more details.
@@ -110,8 +110,8 @@ class Configuration(TransitionEventDispatcher):
 
     create_tables = (SQL_CREATE_APP, SQL_CREATE_APP_TYPE, SQL_CREATE_COM_APP, SQL_CREATE_APP_WORKS_WITH_COM_APP)
 
-    app_types = ('documentapp', 'complugin')
-    com_apps = ('Excel', 'Access', 'MS Project', 'OneNote', 'Outlook', 'PowerPoint', 'Word')
+    app_type_list = ('docapp', 'addin')
+    com_app_list = ('Excel', 'Access', 'MS Project', 'OneNote', 'Outlook', 'PowerPoint', 'Word')
 
     def _create_tables(self):
         """
@@ -124,11 +124,11 @@ class Configuration(TransitionEventDispatcher):
                 print(sql)
                 cursor.execute(sql)
 
-            for com_app in Configuration.com_apps:
+            for com_app in Configuration.com_app_list:
                 print(SQL_INSERT_COM_APP)
                 cursor.execute(SQL_INSERT_COM_APP, (com_app.lower(), ))
 
-            for app_type in Configuration.app_types:
+            for app_type in Configuration.app_type_list:
                 module = inspect.importlib.import_module(app_type)
                 print(SQL_INSERT_APP_TYPE)
                 cursor.execute(SQL_INSERT_APP_TYPE, (app_type, module.__path__[0]))
@@ -194,7 +194,7 @@ class Configuration(TransitionEventDispatcher):
             path = None
         else:
             path = row["PATH"]
-        print("get_app_type_path()", app_type, path)
+        #print("get_app_type_path()", app_type, path)
         return path
 
     @staticmethod
@@ -218,30 +218,31 @@ class Configuration(TransitionEventDispatcher):
                     source_count = 0
                     zipf_source = zipfile.ZipFile(source_path, 'w')
 
+
                     #TODO : find a way to deal with pycache
                     for root, dirs, files in os.walk(path):
                         if "__pycache__" not in root:
                             for file in files:
-                                if file not in ("Manifest", "Manifest_pycache"):
+                                if file not in ("Manifest",):
                                     source_count += 1
                                     zipf_source.write(os.path.join(root, file))
 
-
                     zipf_source.close()
-
 
                     if source_count > 0:
                         source_to_check = open(source_path, 'rb')
                         source_content = source_to_check.read()
+
                         source_sha256 = hashlib.sha3_256()
                         source_sha256.update(source_content)
+
                         source_sha512 = hashlib.sha3_512()
                         source_sha512.update(source_content)
+
                         source_wp = whirlpool.new()
                         source_wp.update(source_content)
+
                         source_to_check.close()
-
-
 
                         digests = {
                             'SHA256': source_sha256.hexdigest(),
@@ -251,6 +252,7 @@ class Configuration(TransitionEventDispatcher):
                     else:
                         print("_generate_app_digests() : no files found in path", path)
 
+                    #print(source_path)
                     os.remove(source_path)
                 except Exception as e:
                     print(repr(e))
@@ -330,10 +332,10 @@ class Configuration(TransitionEventDispatcher):
                 for key in digests.keys():
                     if digests[key] != db_digests[key]:
                         ret_val = False
-                        print("Configuration._verify_db_digests() : Stored", key, "in Manifest file",  db_digests[key],
+                        print("Configuration._verify_db_digests() : Stored", key, "in Manifest file", db_digests[key],
                               "doesn't match with actual", key, "signature", digests[key])
-                    else:
-                        print("Configuration._verify_db_digests() :", key, "match", digests[key])
+                    # else:
+                    #     print("Configuration._verify_db_digests() :", key, "match", digests[key])
             else:
                 ret_val = False
         else:
@@ -357,10 +359,11 @@ class Configuration(TransitionEventDispatcher):
                 for key in digests.keys():
                     if digests[key] != manifest[key]:
                         ret_val = False
-                        print("Configuration._verify_manifest_digests() : Stored", key, "in Manifest file",  manifest[key],
+                        print("Configuration._verify_manifest_digests() : Stored", key, "in Manifest file",
+                              manifest[key],
                               "doesn't match with actual", key, "signature", digests[key])
-                    else:
-                        print("Configuration._verify_manifest_digests() :", key, "matches", digests[key])
+                    # else:
+                    #     print("Configuration._verify_manifest_digests() :", key, "matches", digests[key])
             except ConfigurationException as ce:
                 ret_val = False
                 print("Configuration._verify_manifest_digests() : Can't verify signatures : ", ce.value)
@@ -382,7 +385,8 @@ class Configuration(TransitionEventDispatcher):
     def get_app_info(self, app_type, app_name):
         """
         Return app db record.
-        :param path: application path
+        :param app_type: application type
+        :param app_name: application name
         :return: row containing app fields, None if app doesn't exist
         """
         cursor = self._sqlite.cursor()
@@ -396,26 +400,24 @@ class Configuration(TransitionEventDispatcher):
         :param app_type : update inventory for particular app_type (all types per default)
         :param fire_event : fire events per default. Set it to false to disable it.
         """
-
         if app_type is None:
-            for app_type in self.app_types:
+            for app_type in self.app_type_list:
                 self.update_inventory(app_type, fire_event)
         else:
-            print("update_inventory()", app_type)
+            #print("update_inventory()", app_type)
             # get available app_type sub-packages watching for application
             app_path = self.get_app_type_path(app_type)
             app_list = list()
             for _, app_name, is_package in pkgutil.iter_modules((app_path, )):
-                print(app_name)
                 app_list.append(app_name)
                 if is_package and app_name not in self.get_available_app_list(app_type):
                     self._app_add(app_type, app_name, fire_event)
                 elif is_package:
                     # known app. Verify state.
                     state = self.get_app_state(app_type, app_name)
-                    if state == 'corrupted':
+                    if state == -1:
                         self.disable_app(app_type, app_name)
-                    elif state == 'updated':
+                    elif state == 1:
                         digests = self._generate_app_digests(app_path + "\\" + app_name)
                         self._app_update(app_type, app_name, digests, fire_event)
 
@@ -425,75 +427,151 @@ class Configuration(TransitionEventDispatcher):
                 if name not in app_list:
                     self._app_del(app_type, name, fire_event)
 
-    def enable_app(self, app_type, app_name):
+    def get_com_app_list(self):
+        """Return com_app list from config
+        :return: list() with com_app_name
         """
-        Enables app_name and save configuration.
-        :param app_type: TransitionAppType Enum
+        cursor = self._sqlite.cursor()
+        cursor.execute(SQL_SELECT_ALL_COM_APP)
+        com_apps_name = list()
+        for row in cursor:
+            com_apps_name.append(row['short_name'])
+
+        return com_apps_name
+
+    def enable_app(self, app_type, app_name, com_app=None):
+        """
+        Enables app_name for specified com_app and save configuration.
+        :param app_type: application type
         :param app_name: name of the excel_app to enable.
+        :param com_app: com_app in witch we want to activate app.
+        None per default to enable app for all com_app.
+        :return: True if enabling at least on app/com_app succeed, False instead
+        :raise: ConfigurationException if app_type or app doesn't exists
         """
 
-        if app_name in self.get_available_app_list(app_type):
-            if app_name in self.get_enabled_app_list(app_type):
-                mesg = "Configuration.enable_app() : app {} is already enabled !".format(app_name)
-                print(mesg)
-                raise ConfigurationException(mesg)
-            else:
-                print("Enabling {} app...".format(app_name))
-                #TODO update app active
-
-                #fire on_addin_enable event
-                self._fire_event("on_app_enable", (app_type, app_name))
-        else:
+        if app_type not in self.app_type_list:
+            mesg = "Configuration.enable_app() : Given app_type {} doesn't exist !\nAvailable app_type are {}.".format(
+                app_type, self.app_type_list)
+            print(mesg)
+            raise ConfigurationException(mesg)
+        elif app_name not in self.get_available_app_list(app_type):
             mesg = "Configuration.enable_app() : Can't enable unavailable {} app !\nAvailable apps are {}.".format(
                 app_name, repr(self.get_available_app_list(app_type)))
             print(mesg)
             raise ConfigurationException(mesg)
-
-    def disable_app(self, app_type, app_name):
-        """
-        Disables app_name and save configuration
-        :param app_type:
-        :param app_name: name of the excel_app to disable
-        :param must_validate: False per default. Indicate app must be validated by user. Blocks app enabling when True
-        """
-        if app_name in self.get_enabled_app_list(app_type):
-            print("Disabling {} app...".format(app_name))
-            #TODO update app active
-
-            #fire disable_app event
-            self._fire_event("on_app_disable", (app_type, app_name))
         else:
-            mesg = "Configuration.disable_app() : Can't disable unregistered {} app !".format(app_name)
+            #get app/com_app status
+            app_status_list = self.get_app_list(app_type=app_type, app_name=app_name, com_app=com_app)
+
+            #iterate over app_status_list
+            enabled_com_app_tuple = list()
+            for item in app_status_list:
+                #skip enabled app/com_app
+                if item['enabled'] == 1:
+                    mesg = "Configuration.enable_app() : app {} is already enabled for {} !".format(app_name,
+                                                                                                    com_app)
+                    print(mesg)
+                else:
+                    print("Enabling {} app for {}...".format(app_name, item['com_app']))
+                    cursor = self._sqlite.cursor()
+                    cursor.execute(SQL_UPDATE_APP_WORKS_WITH_COM_APP, (True, app_type, app_name, item['com_app']))
+                    self._sqlite.commit()
+                    enabled_com_app_tuple.append(item['com_app'])
+
+            if len(enabled_com_app_tuple) > 0:
+                #fire on_addin_enable event
+                self._fire_event("on_app_enable", (app_type, app_name, tuple(enabled_com_app_tuple)))
+                ret_val = True
+            else:
+                ret_val = False
+
+        return ret_val
+
+    def disable_app(self, app_type, app_name, com_app=None):
+        """
+        Disable app_name for specified com_app and save configuration.
+        :param app_type: application type
+        :param app_name: name of the excel_app to disable.
+        :param com_app: com_app in witch we want to activate app.
+        None per default to disable app for all com_app.
+        :return: True if disabling at least on app/com_app succeed, False instead
+        :raise: ConfigurationException if app_type/app doesn't exists
+        """
+        if app_type not in self.app_type_list:
+            mesg = "Configuration.enable_app() : Given app_type {} doesn't exist !\nAvailable app_type are {}.".format(
+                app_type, self.app_type_list)
             print(mesg)
             raise ConfigurationException(mesg)
+        elif app_name not in self.get_available_app_list(app_type):
+            mesg = "Configuration.enable_app() : Can't enable unavailable {} app !\nAvailable apps are {}.".format(
+                app_name, repr(self.get_available_app_list(app_type)))
+            print(mesg)
+            raise ConfigurationException(mesg)
+        else:
+            #get app/com_app status
+            app_status_list = self.get_app_list(app_type=app_type, app_name=app_name, com_app=com_app)
 
-    def get_disabled_app_list(self, app_type, com_app=None):
-        """
-        Returns disabled app list for given app_type
-        :param app_type: TransitionAppType
-        :return: disabled app list
-        """
-        cursor = self._sqlite.cursor()
-        cursor.execute(SQL_SELECT_APP_LIST_BY_TYPE, (app_type, 0))
-        disabled_app_list = list()
+            #iterate over app_status_list
+            disabled_com_app_tuple = list()
+            for item in app_status_list:
+                #skip enabled app/com_app
+                if item['enabled'] == 0:
+                    mesg = "Configuration.disable_app() : app {} is already disabled for {} !".format(app_name,
+                                                                                                    com_app)
+                    print(mesg)
+                else:
+                    print("Disabling {} app for {}...".format(app_name, item['com_app']))
+                    cursor = self._sqlite.cursor()
+                    cursor.execute(SQL_UPDATE_APP_WORKS_WITH_COM_APP, (False, app_type, app_name, item['com_app']))
+                    self._sqlite.commit()
+                    disabled_com_app_tuple.append(item['com_app'])
 
-        for row in cursor:
-            disabled_app_list.append(row["name"])
+            if len(disabled_com_app_tuple) > 0:
+                #fire on_addin_enable event
+                self._fire_event("on_app_disable", (app_type, app_name, tuple(disabled_com_app_tuple)))
+                ret_val = True
+            else:
+                ret_val = False
+
+        return ret_val
+
+    def get_disabled_app_list(self, app_type, com_app):
+        """
+        Returns disabled app list for given app_type and com_app
+        :param app_type:
+        :param com_app : Specify com_app.
+        :return: disabled app list, None if app_type and/or com_app doesn't exist
+        """
+        disabled_app_list = None
+        if app_type in self.app_type_list and com_app in self.get_com_app_list():
+            app_list = self.get_app_list(app_type=app_type, com_app=com_app, enabled=False)
+            if app_list is None:
+                app_list = list()
+
+            disabled_app_list = list()
+            for row in app_list:
+                disabled_app_list.append(row["app_name"])
 
         return disabled_app_list
 
-    def get_enabled_app_list(self, app_type, com_app=None):
+    def get_enabled_app_list(self, app_type, com_app):
+        #TODO : replace with get_app_list()
         """
-        Returns enabled app list for given app_type
+        Returns enabled app list for given app_type and com_app
         :param app_type: TransitionAppType
-        :return: enabled app list
+        :param com_app : Specify com_app.
+        :return: enabled app list, None if app_type and/or com_app doesn't exist
         """
-        cursor = self._sqlite.cursor()
-        cursor.execute(SQL_SELECT_APP_LIST_BY_TYPE, (app_type, 1))
-        enabled_app_list = list()
+        enabled_app_list = None
+        if app_type in self.app_type_list and com_app in self.get_com_app_list():
+            app_list = self.get_app_list(app_type=app_type, com_app=com_app, enabled=True)
+            if app_list is None:
+                app_list = list()
 
-        for row in cursor:
-            enabled_app_list.append(row["name"])
+            enabled_app_list = list()
+            for row in app_list:
+                enabled_app_list.append(row["app_name"])
 
         return enabled_app_list
 
@@ -501,10 +579,27 @@ class Configuration(TransitionEventDispatcher):
         """
         Returns available app list for given app_type
         :param app_type: TransitionAppType
+        :param com_app: If specified, only return available apps for specified com_app
         :return: available app list
+        :raise: ConfigurationException() if com_app parameter is not None or Tuple()
         """
         cursor = self._sqlite.cursor()
-        cursor.execute(SQL_SELECT_APP_LIST_BY_TYPE, (app_type, "0, 1"))
+        if com_app is None:
+            cursor.execute(SQL_SELECT_APP_LIST_BY_TYPE, (app_type, ))
+        elif isinstance(com_app, tuple):
+            com_app_tuple = ''
+            for app in com_app:
+                if len(com_app_tuple) == 0:
+                    com_app_tuple += "'" + app + "'"
+                else:
+                    com_app_tuple += ", '" + app + "'"
+
+            cursor.execute(SQL_SELECT_APP_LIST_BY_TYPE_AND_COM_APP.format(com_app_tuple), (app_type,))
+        else:
+            mesg = "get_available_app_list() : com_app parameter must be None or Tuple(). Get " + repr(com_app)
+            print(mesg)
+            raise ConfigurationException(mesg)
+
         available_app_list = list()
 
         for row in cursor:
@@ -512,25 +607,29 @@ class Configuration(TransitionEventDispatcher):
 
         return available_app_list
 
-    def get_app_list(self, app_type=None):
+    def get_app_list(self, app_type=None, app_name=None, com_app=None, enabled=None):
         """
-        Return a list of tuple [(app_name, bool_status)] of available apps.
-        Compare registered apps and available apps in filesystem
-        fire on_app_add / on_app_del
-        :return list
+        Return a filtered row[] list() of available apps.
+        :param app_type: filter list on given app_type. Default is None: don't filter
+        :param app_name: filter list on given app_name. Default is None: don't filter
+        :param com_app: filter list on given com_app. Default is None: don't filter
+        :param enabled: filter list on enabled flag. Default is None: don't filter
+        :return: list of row. None if no records are found
         """
-        app_list = list()
+        cursor = self._sqlite.cursor()
+        cursor.execute(SQL_SELECT_APP_WORKS_WITH_COM_APP)
 
-        if app_type is None:
-            for app_type in Configuration.app_types:
-                app_list.extend(self.get_app_list(app_type))
-        else:
-            app_path = self.get_app_type_path(app_type)
-            for _, name, is_package in pkgutil.iter_modules(app_path):
-                if is_package and name in self.get_enabled_app_list(app_type):
-                    app_list.append((name, True))
-                elif is_package  and name in self.get_disabled_app_list(app_type):
-                    app_list.append((name, False))
+        app_list = list()
+        for row in cursor:
+            app_list.append(row)
+            if ((app_type is not None and app_type != row['app_type'])
+                or (app_name is not None and app_name != row['app_name'])
+                or (com_app is not None and com_app != row['com_app'])
+                or (enabled is not None and enabled != row['enabled'])):
+                app_list.remove(row)
+
+        if len(app_list) == 0:
+            app_list = None
 
         return app_list
 
@@ -581,70 +680,109 @@ class Configuration(TransitionEventDispatcher):
         :param desc: application description
         """
         import re
+
         author = ''
         version = ''
 
-        matches = re.finditer("Author:\s+(.+)+\n", desc, re.M)
-        print(repr(matches))
-        for m in matches:
-            if m is not None:
-                if author == '':
-                    author = m.group(1)
-                else:
-                    author += '\n' + m.group(1)
+        if isinstance(desc, str):
+            matches = re.finditer("Author:\s+(.+)+\n", desc, re.M)
+            print(repr(matches))
+            for m in matches:
+                if m is not None:
+                    if author == '':
+                        author = m.group(1)
+                    else:
+                        author += '\n' + m.group(1)
 
-        m = re.search("Version:\s+(.+)\n", desc)
-        if m is not None:
-            version = m.group(1)
+            m = re.search("Version:\s+(.+)\n", desc)
+            if m is not None:
+                version = m.group(1)
 
         return author, version
+
+    @staticmethod
+    def _app_import(app_type, app_name):
+        """return imported module
+        :param app_type: package
+        :param app_name: sub-package
+        :return: module or None on error
+        """
+        module = None
+        try:
+            module = inspect.importlib.import_module("{}.{}".format(app_type, app_name))
+        except ImportError as ie:
+            print("_app_import() : ERROR : can't import {}.{}. {} is not registerable".format(app_type, app_name,
+                                                                                              app_name))
+            print("_app_import() :", ie.msg)
+        except (SyntaxError, IndentationError, TabError) as se:
+            #https://docs.python.org/3.4/library/exceptions.html#exception-hierarchy
+            print("_app_import() : ERROR : can't import {}.{}. {} is not registerable".format(app_type, app_name,
+                                                                                              app_name))
+            print("_app_import() :", se.msg, se.filename, se.lineno, se.text)
+            print("*** NAUGHTY PROGRAMMER!!!")
+            print("*** SPANK SPANK SPANK!!!")
+            print("*** Now go fix your code. Tut tut tut!")
+
+        return module
 
     def _app_add(self, app_type, app_name, fire_event=True):
         """
         add an application and its info to db. Status is disabled.
-        :param app_type: app type (documentapp, complugin)
+        :param app_type: app type (docapp, addin)
         :param app_name: app name
         :param fire_event: Can be set to False to add app silently
-        :return: app_id or -1 if app already exists
+        :return: app_id or -1 on error
         """
         print("_app_add()", app_type, app_name)
         app_path = self.get_app_type_path(app_type) + "\\" + app_name
         ret_val = -1
 
         if self._get_app_id(app_type, app_name) < 0:
-            app_desc = self._get_app_desc(app_type, app_name)
-            author, version = Configuration._get_app_info_from_desc(app_desc)
-            digest = self._generate_app_digests(app_path)
-            module = inspect.importlib.import_module("{}.{}".format(app_type, app_name))
-            works_with = module.com_app
-            app_type_id = self._get_app_type_id(app_type)
 
-            cursor = self._sqlite.cursor()
-            print(SQL_INSERT_APP)
-            cursor.execute(SQL_INSERT_APP, (app_name,
-                                            author,
-                                            version,
-                                            app_desc,
-                                            False,
-                                            app_path,
-                                            app_type_id,
-                                            digest["SHA256"],
-                                            digest["SHA512"],
-                                            digest["WHIRLPOOL"]))
+            module = self._app_import(app_type, app_name)
+            if module is not None:
+                app_desc = self._get_app_desc(app_type, app_name)
+                author, version = Configuration._get_app_info_from_desc(app_desc)
+                digest = self._generate_app_digests(app_path)
 
-            #Insert relations with com_app
-            self._sqlite.commit()
-            app_id = self._get_app_id(app_type, app_name)
-            for com_app in works_with:
-                com_app_id = self._get_com_app_type_id(com_app)
-                cursor.execute(SQL_INSERT_APP_WORKS_WITH_COM_APP, (app_id, com_app_id))
+                works_with = module.com_app
+                app_type_id = self._get_app_type_id(app_type)
+                if app_type_id > 0:
+                    cursor = self._sqlite.cursor()
+                    print(SQL_INSERT_APP)
+                    cursor.execute(SQL_INSERT_APP, (app_name,
+                                                    author,
+                                                    version,
+                                                    app_desc,
+                                                    app_path,
+                                                    app_type_id,
+                                                    digest["SHA256"],
+                                                    digest["SHA512"],
+                                                    digest["WHIRLPOOL"]))
 
-            self._sqlite.commit()
+                    #Insert links with com_app
+                    self._sqlite.commit()
+                    app_id = self._get_app_id(app_type, app_name)
+                    for com_app in works_with:
+                        com_app_id = self._get_com_app_type_id(com_app)
+                        if com_app_id > 0:
+                            cursor.execute(SQL_INSERT_APP_WORKS_WITH_COM_APP, (app_id, com_app_id, False))
+                        else:
+                            #display warning
+                            print("_app_add() : WARNING : ignore com_app link. com_app '{}' is unknown !"
+                                  .format(com_app))
 
-            if fire_event:
-                self._fire_event("on_app_add", (app_type, app_name))
+                    self._sqlite.commit()
 
-            ret_val = self._get_app_id(app_type, app_name)
+                    if fire_event:
+                        self._fire_event("on_app_add", (app_type, app_name))
+
+                    ret_val = self._get_app_id(app_type, app_name)
+            else:
+                print("_app_add() : module is not importable ! see previous messages.")
+        else:
+            print("_app_add() : ERROR : app_type {} is unknown !".format(app_type))
+            print("_app_add() : ERROR : {} is not registerable".format(app_name))
 
         return ret_val
 
@@ -693,103 +831,114 @@ class Configuration(TransitionEventDispatcher):
 
         app_id = self._get_app_id(app_type, app_name)
         if app_id > 0:
-            app_desc = self._get_app_desc(app_type, app_name)
-            author, version = Configuration._get_app_info_from_desc(app_desc)
-            module = inspect.importlib.import_module("{}.{}".format(app_type, app_name))
-            works_with = module.com_app
+            module = self._app_import(app_type, app_name)
+            if module is not None:
+                app_desc = self._get_app_desc(app_type, app_name)
+                author, version = Configuration._get_app_info_from_desc(app_desc)
+                works_with = module.com_app
 
-            cursor = self._sqlite.cursor()
-            print(SQL_INSERT_APP)
-            cursor.execute(SQL_UPDATE_APP, (author,
-                                            version,
-                                            app_desc,
-                                            digests["SHA256"],
-                                            digests["SHA512"],
-                                            digests["WHIRLPOOL"]))
+                cursor = self._sqlite.cursor()
+                print(SQL_INSERT_APP)
+                cursor.execute(SQL_UPDATE_APP, (author,
+                                                version,
+                                                app_desc,
+                                                digests["SHA256"],
+                                                digests["SHA512"],
+                                                digests["WHIRLPOOL"],
+                                                app_id))
 
-            #Insert relations with com_app
-            cursor.execute(SQL_DELETE_APP_WORKS_WITH_COM_APP_BY_ID, (app_id, ))
+                #Insert relations with com_app
+                cursor.execute(SQL_DELETE_APP_WORKS_WITH_COM_APP_BY_ID, (app_id, ))
 
-            for com_app in works_with:
-                com_app_id = self._get_com_app_type_id(com_app)
-                cursor.execute(SQL_INSERT_APP_WORKS_WITH_COM_APP, (app_id, com_app_id))
+                for com_app in works_with:
+                    com_app_id = self._get_com_app_type_id(com_app)
+                    if com_app_id > 0:
+                        cursor.execute(SQL_INSERT_APP_WORKS_WITH_COM_APP, (app_id, com_app_id, False))
+                    else:
+                        #display warning
+                        print("_app_update() : WARNING : ignore com_app link. com_app '{}' is unknown !"
+                              .format(com_app))
 
-            self._sqlite.commit()
+                self._sqlite.commit()
 
-            if fire_event:
-                self._fire_event("on_app_update", (app_type, app_name))
-
+                if fire_event:
+                    self._fire_event("on_app_update", (app_type, app_name))
+            else:
+                print("_app_update() : module is not importable ! see previous messages.")
         return app_id
-
-    def get_app_status(self, app_type, app_name):
-        """
-        Returns status of given module
-
-        :param app_name
-        :return boolean as status
-        """
-        status = False
-        app_list = self.get_app_list(app_type)
-        for name, status in app_list:
-            if name == app_name:
-                break
-
-        return status
 
     def get_app_mode(self, app_type, app_name):
         """
         Check application mode (if Manifest file is available => usermode)
         :param app_type:
         :param app_name:
-        :return: devmode/usermode
+        :return: devmode/usermode or None if app_type and/or app_name doesn't exist
         """
-        app_path = self.get_app_type_path(app_type)
-        app_package_path = app_path + '\\' + app_path
-        if os.path.exists(app_package_path + "\\Manifest"):
-            return 'usermode'
-        else:
-            return 'devmode'
+        app_info = self.get_app_info(app_type, app_name)
+        mode = None
+        if app_info is not None:
+            if os.path.exists(app_info['path'] + "\\Manifest"):
+                mode = 'usermode'
+            else:
+                mode = 'devmode'
+
+        return mode
 
     def get_app_state(self, app_type, app_name):
         """
         get registered app state (from digests)
         :param app_type:
         :param app_name:
-        :return: unchanged/updated/corrupted
+        :return: 0 : unchanged, 1 : updated, -1 corrupted, None if app_type and/or app_name doesn't exist
         """
-        app_path = self.get_app_type_path(app_type)
-        app_package_path = app_path + '\\' + app_path
-        retval = 'unchanged'
-        if self.get_app_mode(app_type, app_name) == 'usermode':
-            # check Manifest against generated digests
-            digest_ok, _ = self._verify_manifest_digests(app_package_path)
-            if not digest_ok:
-                retval = 'corrupted'
+        app_info = self.get_app_info(app_type, app_name)
+        if app_info is None:
+            ret_val = None
+        else:
+            ret_val = 0
+            if self.get_app_mode(app_type, app_name) == 'usermode':
+                # check Manifest against generated digests
+                digest_ok, _ = self._verify_manifest_digests(app_info['path'])
+                if not digest_ok:
+                    ret_val = -1
+                else:
+                    digest_ok, _ = self._verify_db_digests(app_info['path'])
+                    if not digest_ok:
+                        ret_val = 1
+            else:
+                digest_ok, _ = self._verify_db_digests(app_info['path'])
+                if not digest_ok:
+                    ret_val = 1
 
-        digest_ok, _ = self._verify_db_digests(app_package_path)
-        if not digest_ok:
-            retval = 'updated'
-
-        return retval
+        return ret_val
 
     def print_app_list(self, app_type):
         """
         Displays names, state (loaded or not) and descriptions of the available
-        documentapp.
-
+        docapp.
+        :param app_type: application type
         """
 
-        print("Available {} :".format(app_type.value))
+        print("\nAvailable {} :".format(app_type))
 
         app_list = self.get_app_list(app_type)
+        if app_list is not None:
+            name = ''
+            for item in app_list:
+                # print name and description once
+                if name != item['app_name']:
+                    print("\n" + item['description'])
+                    print(item['app_name'], "is available for :")
+                    name = item['app_name']
 
-        for name, status in app_list:
-            if status:
-                print("\n* {} [ENABLED] : \n".format(name))
-            else:
-                print("\n* {} [DISABLED] : \n".format(name))
-
-            print(self._get_app_desc(app_type, name))
+                # print status for each com_app
+                if item['enabled']:
+                    print("* {} [ENABLED]".format(item['com_app']))
+                else:
+                    print("* {} [DISABLED]".format(item['com_app']))
+        else:
+            print("No application registered for", app_type)
+            print("Available application types are", self.app_type_list)
 
     @staticmethod
     def _get_app_desc(app_type, app_name):
@@ -799,18 +948,21 @@ class Configuration(TransitionEventDispatcher):
         :param app_name
         :returns module description
         """
-        try:
-            # Dynamic import of the package - to be able to load comments
-            module = inspect.importlib.import_module("{}.{}".format(app_type, app_name))
+        desc = ""
+
+        # Dynamic import of the package - to be able to load comments
+        module = Configuration._app_import(app_type, app_name)
+
+        if module is not None:
             # return top comments of the package
-            return inspect.getcomments(module)
-        except Exception as e:
-            print("TransitionKernel._get_app_desc({}, {}) : ".format(app_type, app_name), repr(e))
-            return -1
+            desc = inspect.getcomments(module)
+
+        return desc
+
 
 if __name__ == "__main__":
     config = Configuration()
     config.reset()
     m = config._sqlite
-    for app_type in config.app_types:
-        print(config.get_available_app_list(app_type))
+    # for app_type in config.app_type_list:
+    #     print(config.get_available_app_list(app_type))

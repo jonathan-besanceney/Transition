@@ -1,6 +1,6 @@
 ﻿# ------------------------------------------------------------------------------
-# Name:        complugin
-# Purpose:      complugin package
+# Name:        addin
+# Purpose:      addin package
 #
 #               Provides a standard way to plug add-ins to Excel.
 #               An add-in is a sub-program which always run with Excel and
@@ -45,9 +45,9 @@ def get_desc():
 
     try:
         # Dynamic import of the package - to be able to load comments
-        #inspect.importlib.import_module("documentapp")
+        #inspect.importlib.import_module("docapp")
         # return top comments of the package
-        return inspect.getcomments(sys.modules["complugin"])
+        return inspect.getcomments(sys.modules["addin"])
 
     except Exception as e:
         print(e)
