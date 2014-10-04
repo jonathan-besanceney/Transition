@@ -151,47 +151,72 @@ if __name__ == '__main__':
         config = Configuration()
 
         parser = argparse.ArgumentParser(
-            description=
-            "Transition Office Add-in launches a handler watching for documents open\n"
-            + "and close.\n"
-            + "Handler tries to launch appropriate docapp to handle opened office document.\n"
-            + "Registered addin are launched at startup.\n"
-            + "Running transition.py without parameters registers add-in.\n"
-            + "See optional arguments bellow :")
+            description="""
+            Transition Office Add-in launches a handler watching for documents open and close.
+            Handler tries to launch appropriate docapp to handle opened office document.
+            Registered addin are launched at startup.
+            Running transition.py without parameters registers add-in.
+            See commands and optional arguments bellow :""",
+            epilog="""Help is available for each subcommands. For additional information,
+            see https://github.com/jonathan-besanceney/Transition/wiki/Transition-Home-Page""")
 
         group = parser.add_mutually_exclusive_group()
 
-        # TODO : cleanup arg list (like Configuration interface)
-
-        group.add_argument("--debug", help="registers Transition Excel Add-in in debug mode.\n"
-                                           + "This option enables execution traces to be collected by the config add-in.",
+        group.add_argument("--debug", help="""registers Transition Excel Add-in in debug mode.
+                                          This option enables execution traces to be collected by the config add-in.""",
                            action="store_true")
         group.add_argument("--unregister", help="unregisters register Transition Excel Add-in in debug mode.",
                            action="store_true")
 
-        parser.add_argument("list", help="lists available doc-apps and add-ins. Optional arg {}"
-                            .format(Configuration.app_type_list), action="store_true")
-        parser.add_argument("enable", help="enables available doc-apps and add-ins", action="store_true")
-        parser.add_argument("disable", help="disables previously enabled doc-apps and add-ins", action="store_true")
-        parser.add_argument("args", nargs=argparse.REMAINDER, type=str)
-        args = parser.parse_args()
+        #create sub-parser
+        subparsers = parser.add_subparsers(title="subcommands", description="valid subcommands", dest="subcommand")
 
-        if args.list:
-            if len(args.args) == 2:
-                config.print_app_list(args.args[1])
-            elif len(args.args) > 2:
-                print("list command accept one optional application type argument {}. Command line args : {}."
-                      .format(Configuration.app_type_list, args.args))
-            else:
-                for app_type in Configuration.app_type_list:
-                    config.print_app_list(app_type)
-        elif args.enable:
-            config.enable_app('docapp', args.enable_app)
-        elif args.disable:
-            config.disable_app('docapp', args.disable_app)
-        elif args.unregister:
-            TransitionKernel.transition_unregister(TransitionCOMEventsListener)
-        else:
-            TransitionKernel.transition_register(TransitionCOMEventsListener)
+        # create parser for the 'list' command
+        parse_list = subparsers.add_parser('list', aliases=["l"],
+                                           help="""lists available doc-apps and add-ins.
+                                           List can be filtered for particular application type {} when specified.
+                                           """.format(Configuration.app_type_list))
+        parse_list.add_argument('app_type', nargs="?",
+                                help="""optionally restrict list to specified application type.""",
+                                choices=Configuration.app_type_list)
+        parse_list.set_defaults(func=config.print_app_list)
+
+        # create parser for the 'enable' command
+        parse_enable = subparsers.add_parser('enable', aliases=["e"],
+                                             help="enables available doc-apps and add-ins")
+        parse_enable.add_argument('app_type', nargs=1, choices=list(config.app_type_list),
+                                help="application type of app to enable.")
+        parse_enable.add_argument('app_name', nargs=1,
+                                help="application name to enable.")
+        parse_enable.add_argument('com_app', nargs="?",
+                                help="specify optionally for which com app enable given app.")
+        parse_enable.set_defaults(func=config.enable_app)
+
+        # create parser for the 'disable' command
+        parse_disable = subparsers.add_parser('disable', aliases=["d"],
+                                             help="disable available doc-apps and add-ins")
+        parse_disable.add_argument('app_type', nargs=1, choices=list(config.app_type_list),
+                                help="application type of app to disable.")
+        parse_disable.add_argument('app_name', nargs=1,
+                                help="application name to disable.")
+        parse_disable.add_argument('com_app', nargs="?",
+                                help="specify optionally for which com app disable given app.")
+        parse_disable.set_defaults(func=config.disable_app)
+
+        #TODO search for app
+
+        #TODO status (registered/unregistered) for com app or all
+        #TODO register on com_app or on all (--debug)
+        #TODO unregister on com_app or on all
+
+        args = parser.parse_args()
+        if args.subcommand == 'list':
+            args.func(args.app_type)
+        elif args.subcommand in ('enable', 'disable'):
+            args.func(args.app_type[0], args.app_name[0], args.com_app)
+        # if args.unregister:
+        #     TransitionKernel.transition_unregister(TransitionCOMEventsListener)
+        # else:
+        #     TransitionKernel.transition_register(TransitionCOMEventsListener)
     except ConfigurationException as ce:
         print("Transition configuration command returned an error :", ce.value)

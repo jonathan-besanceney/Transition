@@ -912,33 +912,37 @@ class Configuration(TransitionEventDispatcher):
 
         return ret_val
 
-    def print_app_list(self, app_type):
+    def print_app_list(self, app_type=None):
         """
         Displays names, state (loaded or not) and descriptions of the available
         docapp.
-        :param app_type: application type
+        :param app_type: application type. Default None for all registered app_type
         """
 
-        print("\nAvailable {} :".format(app_type))
-
-        app_list = self.get_app_list(app_type)
-        if app_list is not None:
-            name = ''
-            for item in app_list:
-                # print name and description once
-                if name != item['app_name']:
-                    print("\n" + item['description'])
-                    print(item['app_name'], "is available for :")
-                    name = item['app_name']
-
-                # print status for each com_app
-                if item['enabled']:
-                    print("* {} [ENABLED]".format(item['com_app']))
-                else:
-                    print("* {} [DISABLED]".format(item['com_app']))
+        if app_type is None:
+            for app_type in self.app_type_list:
+                self.print_app_list(app_type)
         else:
-            print("No application registered for", app_type)
-            print("Available application types are", self.app_type_list)
+            print("\nAvailable {} :".format(app_type))
+
+            app_list = self.get_app_list(app_type)
+            if app_list is not None:
+                name = ''
+                for item in app_list:
+                    # print name and description once
+                    if name != item['app_name']:
+                        print("\n" + item['description'])
+                        print(item['app_name'], "is available for :")
+                        name = item['app_name']
+
+                    # print status for each com_app
+                    if item['enabled']:
+                        print("* {} [ENABLED]".format(item['com_app']))
+                    else:
+                        print("* {} [DISABLED]".format(item['com_app']))
+            else:
+                print("No application registered for", app_type)
+                print("Available application types are", self.app_type_list)
 
     @staticmethod
     def _get_app_desc(app_type, app_name):
