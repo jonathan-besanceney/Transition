@@ -25,17 +25,19 @@
 # -*- coding: utf8 -*-
 
 from transitioncore.eventsinterface.configeventinterface import ConfigEventsInterface
+from rpyc import Service
 
 
 class KernelConfigurationEventListener(ConfigEventsInterface):
     def __init__(self, kernel=None):
+        super(KernelConfigurationEventListener, self).__init__()
         self.kernel = kernel
         #declare interesting kernel event. on_app_add and on_app_del are not kernel
         #stuff by now (more configuration GUI oriented)
         self.event_list = ("on_app_enable", "on_app_disable")
 
-    def on_app_disable(self, app_type, app_name):
-        pass
+    def on_app_disable(self, app_type, app_name, com_app_tuple):
+        print("KernelConfigurationEventListener.on_app_disable", app_type, app_name, com_app_tuple)
 
-    def on_app_enable(self, app_type, app_name):
-        pass
+    def on_app_enable(self, app_type, app_name, com_app_tuple):
+        print("KernelConfigurationEventListener.on_app_enable", app_type, app_name, com_app_tuple)

@@ -28,7 +28,7 @@
 class TransitionEventDispatcher():
     """
     Small event dispatcher.
-    Subclass it to manage events in your class.
+    Subclass it to manage events in your own class.
     """
 
     def __init__(self, event_interface):
@@ -43,12 +43,15 @@ class TransitionEventDispatcher():
         :param listener: event_interface subclass
         :return: None
         """
-        if isinstance(listener, self._event_interface):
-            self._event_listener.append(listener)
-        else:
-            #TODO raise TypeError exception
-            print("TransitionEventDispatcher.add_event_listener : expecting", self._event_interface.__class__.name,
-                  "got", listener.__class__.name)
+        print("given listener", repr(listener.__class__))
+        print("expected listener", repr(self._event_interface))
+        # if issubclass(type(listener), self._event_interface):
+        self._event_listener.append(listener)
+        # else:
+        #     mesg = "TransitionEventDispatcher.add_event_listener : unexpected type"
+        #     print(mesg)
+        #     raise TypeError(mesg)
+        print(len(self._event_listener), "listener(s) registered")
 
     def del_event_listener(self, listener):
         """
@@ -58,6 +61,7 @@ class TransitionEventDispatcher():
         """
         try:
             self._event_listener.remove(listener)
+            print(len(self._event_listener), "listener(s) registered")
         except ValueError:
             print("TransitionEventDispatcher.del_event_listener : Can't remove unregistered listener", repr(listener))
 
@@ -69,14 +73,18 @@ class TransitionEventDispatcher():
         :param event_method: String containing event method name
         :param event_args:
         """
+        print("_fire_event called.")
         for event_listener in self._event_listener:
+            print("_fire_event : look for ", event_method, "in", event_listener)
             if event_method in event_listener.event_list:
+                print("_fire_event : fire", event_method, "with", event_args)
                 try:
                     if isinstance(event_args, tuple):
                         getattr(event_listener, event_method)(*event_args)
                     else:
                         getattr(event_listener, event_method)(event_args)
                 except AttributeError as ae:
-                    print("TransitionEventDispatcher._fire_event: except AttributeError calling", event_method, ae)
+                    print("TransitionEventDispatcher._fire_event: raise AttributeError calling", event_method, ae)
                 # except TypeError as te:
                 #    print("TransitionEventDispatcher._fire_event: except TypeError calling", event_method, te)
+                print("_fire_event : fired :", event_method, "with", event_args)

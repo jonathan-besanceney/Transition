@@ -44,7 +44,61 @@ from transitioncore.exceptions.configurationexception import ConfigurationExcept
 from transitioncore.configsql import *
 
 
-class Configuration(TransitionEventDispatcher):
+class IConfiguration:
+    def available(self):
+        pass
+
+    def disable_app(self, app_type, app_name, com_app):
+        pass
+
+    def enable_app(self, app_type, app_name, com_app):
+        pass
+
+    def get_app_info(self, app_type, app_name):
+        pass
+
+    def get_app_info_by_path(self, path):
+        pass
+
+    def get_app_list(self, app_type, app_name, com_app, enabled):
+        pass
+
+    def get_app_mode(self, app_type, app_name):
+        pass
+
+    def get_app_state(self, app_type, app_name):
+        pass
+
+    def get_app_type_path(self, app_type):
+        pass
+
+    def get_available_app_list(self, app_type, com_app=None):
+        pass
+
+    def get_com_app_list(self):
+        pass
+
+    def get_disabled_app_list(self, app_type, com_app):
+        pass
+
+    def get_enabled_app_list(self, app_type, com_app):
+        pass
+
+    def print_app_list(self, app_type=None):
+        pass
+
+    def reset(self):
+        pass
+
+    def update_inventory(self, app_type=None, fire_event=True):
+        pass
+
+    @staticmethod
+    def write_app_manifest(path):
+        pass
+
+
+class Configuration(IConfiguration, TransitionEventDispatcher):
     """ Deals with Transition configuration.
 
     Application management
@@ -113,11 +167,22 @@ class Configuration(TransitionEventDispatcher):
     app_type_list = ('docapp', 'addin')
     com_app_list = ('Excel', 'Access', 'MS Project', 'OneNote', 'Outlook', 'PowerPoint', 'Word')
 
+    def available(self):
+        """Ask if SQLite cnx is available
+        :return: True if available, false if not
+        """
+        ret_val = True
+        if self._sqlite_cnx is not None:
+            ret_val = False
+
+        return ret_val
+
     def _create_tables(self):
         """
         Creates configuration tables and populates them
         """
-        cursor = self._sqlite_cnx.cursor()
+        cnx = self._sqlite_cnx
+        cursor = cnx.cursor()
         sql = ""
         try:
             for sql in Configuration.create_tables:
@@ -133,9 +198,11 @@ class Configuration(TransitionEventDispatcher):
                 print(SQL_INSERT_APP_TYPE)
                 cursor.execute(SQL_INSERT_APP_TYPE, (app_type, module.__path__[0]))
 
-            self._sqlite_cnx.commit()
+            cnx.commit()
         except sqlite3.OperationalError as oe:
             print("Configuration._create_tables :", sql, oe)
+        finally:
+            cursor.close()
 
     def reset(self):
         if self._sqlite_cnx is not None:
@@ -154,6 +221,7 @@ class Configuration(TransitionEventDispatcher):
 
         self.com_app = com_app
         self._sqlite_cnx = None
+        self._sqlite_cnx_usage_count = 0
 
         #events listeners
         self._event_listener_list = list()
@@ -163,7 +231,7 @@ class Configuration(TransitionEventDispatcher):
         Make SQLite connection. Creates DB if not exists.
         :return: DB2API sqlite connection
         """
-
+        self._sqlite_cnx_usage_count += 1
         db_create = False
         if not os.path.exists(Configuration.cnx_str):
             self._sqlite_cnx = None
@@ -174,12 +242,18 @@ class Configuration(TransitionEventDispatcher):
             self._sqlite_cnx.row_factory = sqlite3.Row
             if db_create:
                 self._create_tables()
-
-            self.update_inventory(fire_event=False)
+                self.update_inventory(fire_event=False)
 
         return self._sqlite_cnx
 
     _sqlite = property(_get_sqlite)
+
+    def _close_sqlite(self):
+        self._sqlite_cnx_usage_count -= 1
+        if self._sqlite_cnx_usage_count == 0:
+            self._sqlite_cnx.close()
+            self._sqlite_cnx = None
+
 
     def get_app_type_path(self, app_type):
         """
@@ -195,6 +269,8 @@ class Configuration(TransitionEventDispatcher):
         else:
             path = row["PATH"]
         #print("get_app_type_path()", app_type, path)
+        cursor.close()
+        self._close_sqlite()
         return path
 
     @staticmethod
@@ -205,8 +281,7 @@ class Configuration(TransitionEventDispatcher):
         Idea comes from : http://devmanual.gentoo.org/general-concepts/manifest/index.html
         SHA uses keccak. See top comments about that.
 
-        :param app_type: application type (package)
-        :param app_name : application name (sub-package)
+        :param path: application path
         :return: dict {SHA256, SHA512, WHIRLPOOL} or None on error
         """
 
@@ -217,7 +292,6 @@ class Configuration(TransitionEventDispatcher):
                     source_path = os.getenv("TMP") + "\\transition_app_source.zip"
                     source_count = 0
                     zipf_source = zipfile.ZipFile(source_path, 'w')
-
 
                     #TODO : find a way to deal with pycache
                     for root, dirs, files in os.walk(path):
@@ -380,7 +454,10 @@ class Configuration(TransitionEventDispatcher):
         """
         cursor = self._sqlite.cursor()
         cursor.execute(SQL_SELECT_APP_BY_PATH, (path, ))
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        cursor.close()
+        self._close_sqlite()
+        return row
 
     def get_app_info(self, app_type, app_name):
         """
@@ -391,7 +468,10 @@ class Configuration(TransitionEventDispatcher):
         """
         cursor = self._sqlite.cursor()
         cursor.execute(SQL_SELECT_APP, (app_type, app_name))
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        cursor.close()
+        self._close_sqlite()
+        return row
 
     def update_inventory(self, app_type=None, fire_event=True):
         """
@@ -437,6 +517,8 @@ class Configuration(TransitionEventDispatcher):
         for row in cursor:
             com_apps_name.append(row['short_name'])
 
+        cursor.close()
+        self._close_sqlite()
         return com_apps_name
 
     def enable_app(self, app_type, app_name, com_app=None):
@@ -474,11 +556,13 @@ class Configuration(TransitionEventDispatcher):
                     print(mesg)
                 else:
                     print("Enabling {} app for {}...".format(app_name, item['com_app']))
-                    cursor = self._sqlite.cursor()
+                    cnx = self._sqlite
+                    cursor = cnx.cursor()
                     cursor.execute(SQL_UPDATE_APP_WORKS_WITH_COM_APP, (True, app_type, app_name, item['com_app']))
-                    self._sqlite.commit()
+                    cnx.commit()
                     enabled_com_app_tuple.append(item['com_app'])
-
+                    cursor.close()
+                    self._close_sqlite()
             if len(enabled_com_app_tuple) > 0:
                 #fire on_addin_enable event
                 self._fire_event("on_app_enable", (app_type, app_name, tuple(enabled_com_app_tuple)))
@@ -518,15 +602,17 @@ class Configuration(TransitionEventDispatcher):
                 #skip enabled app/com_app
                 if item['enabled'] == 0:
                     mesg = "Configuration.disable_app() : app {} is already disabled for {} !".format(app_name,
-                                                                                                    com_app)
+                                                                                                      com_app)
                     print(mesg)
                 else:
                     print("Disabling {} app for {}...".format(app_name, item['com_app']))
-                    cursor = self._sqlite.cursor()
+                    cnx = self._sqlite
+                    cursor = cnx.cursor()
                     cursor.execute(SQL_UPDATE_APP_WORKS_WITH_COM_APP, (False, app_type, app_name, item['com_app']))
-                    self._sqlite.commit()
+                    cnx.commit()
                     disabled_com_app_tuple.append(item['com_app'])
-
+                    cursor.close()
+                    self._close_sqlite()
             if len(disabled_com_app_tuple) > 0:
                 #fire on_addin_enable event
                 self._fire_event("on_app_disable", (app_type, app_name, tuple(disabled_com_app_tuple)))
@@ -605,6 +691,8 @@ class Configuration(TransitionEventDispatcher):
         for row in cursor:
             available_app_list.append(row["name"])
 
+        cursor.close()
+        self._close_sqlite()
         return available_app_list
 
     def get_app_list(self, app_type=None, app_name=None, com_app=None, enabled=None):
@@ -625,12 +713,14 @@ class Configuration(TransitionEventDispatcher):
             if ((app_type is not None and app_type != row['app_type'])
                 or (app_name is not None and app_name != row['app_name'])
                 or (com_app is not None and com_app != row['com_app'])
-                or (enabled is not None and enabled != row['enabled'])):
+                    or (enabled is not None and enabled != row['enabled'])):
                 app_list.remove(row)
 
         if len(app_list) == 0:
             app_list = None
 
+        cursor.close()
+        self._close_sqlite()
         return app_list
 
     def _get_app_type_id(self, app_type):
@@ -642,6 +732,9 @@ class Configuration(TransitionEventDispatcher):
             app_id = row["rowid"]
         else:
             app_id = -1
+
+        cursor.close()
+        self._close_sqlite()
         return app_id
 
     def _get_com_app_type_id(self, com_app):
@@ -656,6 +749,9 @@ class Configuration(TransitionEventDispatcher):
             app_id = row["rowid"]
         else:
             app_id = -1
+
+        cursor.close()
+        self._close_sqlite()
         return app_id
 
     def _get_app_id(self, app_type, app_name):
@@ -671,8 +767,10 @@ class Configuration(TransitionEventDispatcher):
             app_id = -1
         else:
             app_id = row["rowid"]
-        return app_id
 
+        cursor.close()
+        self._close_sqlite()
+        return app_id
 
     @staticmethod
     def _get_app_info_from_desc(desc):
@@ -748,7 +846,8 @@ class Configuration(TransitionEventDispatcher):
                 works_with = module.com_app
                 app_type_id = self._get_app_type_id(app_type)
                 if app_type_id > 0:
-                    cursor = self._sqlite.cursor()
+                    cnx = self._sqlite
+                    cursor = cnx.cursor()
                     print(SQL_INSERT_APP)
                     cursor.execute(SQL_INSERT_APP, (app_name,
                                                     author,
@@ -761,7 +860,7 @@ class Configuration(TransitionEventDispatcher):
                                                     digest["WHIRLPOOL"]))
 
                     #Insert links with com_app
-                    self._sqlite.commit()
+                    cnx.commit()
                     app_id = self._get_app_id(app_type, app_name)
                     for com_app in works_with:
                         com_app_id = self._get_com_app_type_id(com_app)
@@ -772,11 +871,13 @@ class Configuration(TransitionEventDispatcher):
                             print("_app_add() : WARNING : ignore com_app link. com_app '{}' is unknown !"
                                   .format(com_app))
 
-                    self._sqlite.commit()
+                    cnx.commit()
 
                     if fire_event:
                         self._fire_event("on_app_add", (app_type, app_name))
 
+                    cursor.close()
+                    self._close_sqlite()
                     ret_val = self._get_app_id(app_type, app_name)
             else:
                 print("_app_add() : module is not importable ! see previous messages.")
@@ -798,11 +899,13 @@ class Configuration(TransitionEventDispatcher):
         print("_app_del()", app_type, app_name)
         app_id = self._get_app_id(app_type, app_name)
         if app_id > 0:
-            cursor = self._sqlite.cursor()
+            cnx = self._sqlite
+            cursor = cnx.cursor()
             cursor.execute(SQL_DELETE_APP_WORKS_WITH_COM_APP_BY_ID, (app_id, ))
             cursor.execute(SQL_DELETE_APP_BY_ID, (app_id, ))
-            self._sqlite.commit()
-
+            cnx.commit()
+            cursor.close()
+            self._close_sqlite()
             if fire_event:
                 self._fire_event("on_app_del", (app_type, app_name))
         else:
@@ -836,8 +939,8 @@ class Configuration(TransitionEventDispatcher):
                 app_desc = self._get_app_desc(app_type, app_name)
                 author, version = Configuration._get_app_info_from_desc(app_desc)
                 works_with = module.com_app
-
-                cursor = self._sqlite.cursor()
+                cnx = self._sqlite
+                cursor = cnx.cursor()
                 print(SQL_INSERT_APP)
                 cursor.execute(SQL_UPDATE_APP, (author,
                                                 version,
@@ -859,8 +962,9 @@ class Configuration(TransitionEventDispatcher):
                         print("_app_update() : WARNING : ignore com_app link. com_app '{}' is unknown !"
                               .format(com_app))
 
-                self._sqlite.commit()
-
+                cnx.commit()
+                cursor.close()
+                self._close_sqlite()
                 if fire_event:
                     self._fire_event("on_app_update", (app_type, app_name))
             else:
@@ -967,6 +1071,6 @@ class Configuration(TransitionEventDispatcher):
 if __name__ == "__main__":
     config = Configuration()
     config.reset()
-    m = config._sqlite
+    cnx = config._sqlite
     # for app_type in config.app_type_list:
     #     print(config.get_available_app_list(app_type))

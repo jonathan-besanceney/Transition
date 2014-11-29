@@ -27,6 +27,9 @@
 
 
 class ConfigEventsInterface():
+    def __init__(self):
+        self.event_list = list()
+
     def on_app_enable(self, app_type, app_name, com_app_tuple):
         """
         Fired when an available app is enabled
@@ -65,3 +68,9 @@ class ConfigEventsInterface():
         :param app_name:
         """
         pass
+
+    def _rpyc_getattr(self, name):
+        return getattr(self, name)
+
+    def _rpyc_setattr(self, name, value):
+        setattr(self, name, value)

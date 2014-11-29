@@ -32,6 +32,7 @@ from transitioncore.eventsinterface.configeventinterface import ConfigEventsInte
 
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
+
 class ConfigEvt(ConfigEventsInterface):
     def __init__(self):
         super(ConfigEvt, self).__init__()
@@ -63,6 +64,7 @@ class ConfigEvt(ConfigEventsInterface):
         self.last_fired_evt = 'on_app_update'
         self.last_fired_evt_args = {'app_type': app_type, 'app_name': app_name}
         print('fired event', self.last_fired_evt, self.last_fired_evt_args)
+
 
 class ConfigurationTest(unittest.TestCase):
 
@@ -99,7 +101,8 @@ class ConfigurationTest(unittest.TestCase):
         self.assertLess(0, app_id)
 
         #check if "work with" records are ok
-        cursor = self.config._sqlite_cnx.cursor()
+        cnx = self.config._sqlite
+        cursor = cnx.cursor()
         cursor.execute("""SELECT short_name
                             FROM com_app
                                 INNER JOIN app_works_with_com_app ON com_app.rowid = app_works_with_com_app.id_com_app
@@ -112,6 +115,8 @@ class ConfigurationTest(unittest.TestCase):
             com_app_count += 1
             self.assertIn(row["short_name"], addin.config.com_app)
 
+        cursor.close()
+        self.config._close_sqlite()
         self.assertEqual(len(addin.config.com_app), com_app_count)
 
         #event must be fired
@@ -226,14 +231,15 @@ print("Hello World")
         import addin.config
         #reset all updatable fields
         app_id = self.config._get_app_id('addin', 'config')
-        cursor = self.config._sqlite_cnx.cursor()
+        cnx = self.config._sqlite
+        cursor = cnx.cursor()
         cursor.execute("""UPDATE app
                         SET author='', version='', description='', SHA256='', SHA512='', WHIRLPOOL=''
                         WHERE rowid = ?""", (app_id, ))
         cursor.execute("""DELETE FROM app_works_with_com_app
                         WHERE id_app = ?""", (app_id, ))
-        self.config._sqlite_cnx.commit()
-
+        cnx.commit()
+        self.config._close_sqlite()
         #reset events
         self.evt.last_fired_evt = ''
         self.evt.last_fired_evt_args = dict()
@@ -251,7 +257,8 @@ print("Hello World")
         self.assertEqual(app_id, ret_val)
 
         #check written values
-        cursor = self.config._sqlite_cnx.cursor()
+        cnx = self.config._sqlite
+        cursor = cnx.cursor()
         cursor.execute("""SELECT * FROM app
                 WHERE rowid = ?""", (app_id, ))
         infos = cursor.fetchone()
@@ -273,6 +280,8 @@ print("Hello World")
             com_app_count += 1
             self.assertIn(row['short_name'], works_with)
 
+        cursor.close
+        self.config._close_sqlite()
         self.assertEqual(len(works_with), com_app_count)
 
         #check event fired
@@ -363,11 +372,13 @@ print("Hello World")
 
     def test__get_app_id(self):
         app_id = self.config._get_app_id('addin', 'config')
-        cursor = self.config._sqlite_cnx.cursor()
+        cnx = self.config._sqlite
+        cursor = cnx.cursor()
         cursor.execute("SELECT rowid FROM app WHERE name = ?", ('config', ))
         expected_app_id = cursor.fetchone()['rowid']
         self.assertEqual(expected_app_id, app_id)
-
+        cursor.close()
+        self.config._close_sqlite()
         app_id = self.config._get_app_id('complugi', 'config')
         self.assertEqual(-1, app_id)
 
@@ -448,7 +459,12 @@ print("Hello World")
         self.assertEqual('', self.evt.last_fired_evt)
         self.assertDictEqual({}, self.evt.last_fired_evt_args)
         #be connected :p
+        self.assertEqual(self.config._sqlite_cnx_usage_count, 1)
         self.assertIsInstance(sqlite_cnx, sqlite3.Connection)
+        #close cnx
+        self.config._close_sqlite()
+        self.assertIsNone(self.config._sqlite_cnx)
+        self.assertEqual(self.config._sqlite_cnx_usage_count, 0)
 
     def test__get_app_type_id(self):
         import tests
